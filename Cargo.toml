@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+  "rast",
+  "rast-agent",
+  "rast-c2",
+]

@@ -1,0 +1,11 @@
+[package]
+name = "rast-c2"
+version = "0.1.0"
+edition = "2021"
+authors = ["Marek 'seqre' Grzelak <marek.grzelak@seqre.dev>"]
+description = "<description>"
+readme = "README.md"
+repository = "https://github.com/seqre/rast"
+license = "GPL-3.0-or-later"
+keywords = ["c2", "rat"]
+publish = false

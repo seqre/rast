@@ -1,2 +1,2 @@
-# rusty_rat
+# rast
 Place for RAT in Rust

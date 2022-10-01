@@ -1,0 +1,96 @@
+name: Rust CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+# See: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#concurrency.
+# This will ensure that only one commit will be running tests at a time on each PR.
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: ["stable", "beta", "nightly"]
+        os: [ubuntu-latest, macos-latest, windows-2019]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-debug-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Test Rast library
+        run: cargo +${{ matrix.rust }} test --manifest-path rast/Cargo.toml
+
+      - name: Test Rast agent
+        run: cargo +${{ matrix.rust }} test --manifest-path rast-agent/Cargo.toml
+
+      - name: Test Rast C2
+        run: cargo +${{ matrix.rust }} test --manifest-path rast-c2/Cargo.toml
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-debug-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@beta
+        with:
+          components: clippy
+
+      - name: Run clippy
+        run: cargo clippy
+
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-debug-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+
+      - name: Run fmt
+        run: cargo fmt --all -- --check
+

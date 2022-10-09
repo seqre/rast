@@ -1,6 +1,7 @@
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
+    thread,
 };
 
 fn handle_client(mut stream: TcpStream) {
@@ -24,12 +25,17 @@ fn main() -> std::io::Result<()> {
 
     let listener = TcpListener::bind("127.0.0.1:42069")?;
 
-    match listener.accept() {
-        Ok((stream, addr)) => {
-            println!("Got connection from: {addr:?}");
-            handle_client(stream);
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                println!("Got connection from: {:?}", stream.peer_addr().unwrap());
+                thread::spawn(move || {
+                    handle_client(stream);
+                });
+            }
+            Err(e) => println!("Error: {e:?}"),
         }
-        Err(e) => println!("Error: {e:?}"),
     }
+
     Ok(())
 }

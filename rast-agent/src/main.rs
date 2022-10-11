@@ -1,25 +1,25 @@
 use std::{
-    io::{Read, Write},
-    net::TcpStream,
+    io::{Read, Result, Write},
+    net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream},
 };
 
-fn main() -> std::io::Result<()> {
+use rast::protocols::{tcp::*, *};
+use tokio;
+
+#[tokio::main]
+async fn main() -> Result<()> {
     println!("Hello from client!");
 
-    let mut stream = TcpStream::connect("127.0.0.1:42069")?;
+    let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 42069);
+    let mut client: Box<dyn ProtoClient<Conf = TcpConf>> =
+        Box::new(TcpClient::new_client(address, None).await?);
 
-    let msg = b"Ping!";
-    let _ = stream.write(msg)?;
+    let msg_s = "Ping!";
+    let _ = client.send(msg_s.to_string()).await?;
+    println!("Message sent: {}", msg_s);
 
-    let mut buf = [0; 128];
-    match stream.read(&mut buf) {
-        Ok(bytes_read) => {
-            if bytes_read > 0 {
-                println!("{}", String::from_utf8_lossy(&buf));
-            }
-        }
-        Err(e) => println!("Error: {e:?}"),
-    }
+    let msg_r = client.recv().await?;
+    println!("Message received: {}", msg_r);
 
     Ok(())
 }

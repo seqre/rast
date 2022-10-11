@@ -1,3 +1,8 @@
+pub mod protocols;
+
+// pub enum Msg {}
+pub type Msg = String;
+
 #[cfg(test)]
 mod tests {
     #[test]

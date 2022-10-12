@@ -1,13 +1,9 @@
-use std::{
-    io::{Read, Result, Write},
-    net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream},
-};
+use std::{io::Result, net::SocketAddr, process::Command};
 
 use rast::{
     protocols::{tcp::*, *},
     settings::*,
 };
-use tokio;
 
 #[tokio::main]
 async fn main() -> Result<()> {

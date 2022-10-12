@@ -1,24 +1,28 @@
-use std::{
-    io::{Read, Result, Write},
-    net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream},
-    thread,
-};
+use std::{io, io::Result, net::SocketAddr};
 
 use rast::{
     protocols::{tcp::*, *},
     settings::*,
 };
-use tokio;
 
 async fn handle_client(mut conn: Box<dyn ProtoConnection>) -> Result<()> {
-    let msg_r = conn.recv().await?;
-    println!("Message received: {}", msg_r);
+    // let msg_r = conn.recv().await?;
+    // println!("Message received: {}", msg_r);
 
-    let msg_s = "Pong!";
-    let _ = conn.send(msg_s.to_string()).await?;
-    println!("Message sent: {}", msg_s);
+    let stdin = io::stdin();
+    loop {
+        let mut cmd = String::new();
+        if let Ok(n) = stdin.read_line(&mut cmd) {
+            if n > 0 {
+                conn.send(cmd).await?;
+                let msg_r = conn.recv().await?;
+                let msg_r = msg_r.trim_end_matches('\0');
+                println!("{}", msg_r);
+            }
+        };
+    }
 
-    Ok(())
+    // Ok(())
 }
 
 #[tokio::main]

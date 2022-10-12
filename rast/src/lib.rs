@@ -1,4 +1,5 @@
 pub mod protocols;
+pub mod settings;
 
 // pub enum Msg {}
 pub type Msg = String;

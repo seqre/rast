@@ -3,14 +3,28 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream},
 };
 
-use rast::protocols::{tcp::*, *};
+use rast::{
+    protocols::{tcp::*, *},
+    settings::*,
+};
 use tokio;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Hello from client!");
 
-    let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 42069);
+    // TODO: add embedding during compile
+    let conf = match Settings::new() {
+        Ok(conf) => {
+            println!("{:?}", conf);
+            conf
+        },
+        Err(e) => {
+            panic!("{:?}", e);
+        },
+    };
+
+    let address = SocketAddr::new(conf.server.ip, conf.server.port);
     let mut client: Box<dyn ProtoClient<Conf = TcpConf>> =
         Box::new(TcpClient::new_client(address, None).await?);
 

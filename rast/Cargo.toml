@@ -11,5 +11,9 @@ keywords = ["c2", "rat"]
 publish = false
 
 [dependencies]
+config = { version = "0.13" }
+serde = { version = "1.0" }
+serde_derive = { version = "1.0" }
 tokio = { version = "1.21", features = [ "full" ] }
 async-trait = { version = "0.1" }
+glob = { version = "0.3" }

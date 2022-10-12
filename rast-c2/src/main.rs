@@ -4,7 +4,10 @@ use std::{
     thread,
 };
 
-use rast::protocols::{tcp::*, *};
+use rast::{
+    protocols::{tcp::*, *},
+    settings::*,
+};
 use tokio;
 
 async fn handle_client(mut conn: Box<dyn ProtoConnection>) -> Result<()> {
@@ -22,7 +25,18 @@ async fn handle_client(mut conn: Box<dyn ProtoConnection>) -> Result<()> {
 async fn main() -> Result<()> {
     println!("Hello from server!");
 
-    let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 42069);
+    let conf = match Settings::new() {
+        Ok(conf) => {
+            println!("Config:");
+            println!("{:?}", conf);
+            conf
+        },
+        Err(e) => {
+            panic!("{:?}", e);
+        },
+    };
+
+    let address = SocketAddr::new(conf.server.ip, conf.server.port);
     let server: Box<dyn ProtoServer<Conf = TcpConf>> =
         Box::new(TcpServer::new_server(address, None).await?);
 

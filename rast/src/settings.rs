@@ -1,14 +1,19 @@
-use std::{env, net::IpAddr};
+use std::env;
 
 use config::{Config, ConfigError, Environment, File};
 use glob::glob;
 use serde_derive::Deserialize;
 
+use crate::protocols::tcp::TcpConf;
+
+//#[derive(Debug, Deserialize)]
+//#[allow(unused)]
+// pub struct Dummy {}
+
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
 pub struct Server {
-    pub ip: IpAddr,
-    pub port: u16,
+    pub tcp: Option<TcpConf>,
 }
 
 #[derive(Debug, Deserialize)]

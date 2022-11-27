@@ -13,3 +13,4 @@ publish = false
 [dependencies]
 rast = { path = "../rast" }
 tokio = { version = "1.21", features = [ "full" ] }
+anyhow = { version = "1.0" }

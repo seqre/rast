@@ -1,6 +1,6 @@
-pub mod messages;
-pub mod protocols;
-pub mod settings;
+pub mod c2;
+
+pub use c2::RastC2;
 
 #[cfg(test)]
 mod tests {

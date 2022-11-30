@@ -12,8 +12,15 @@ use crate::protocols::tcp::TcpConf;
 
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
+pub struct Ui {
+    pub tcp: Option<TcpConf>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(unused)]
 pub struct Server {
     pub tcp: Option<TcpConf>,
+    pub ui: Option<Ui>,
 }
 
 #[derive(Debug, Deserialize)]

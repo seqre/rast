@@ -3,7 +3,6 @@ use std::{io, net::SocketAddr};
 use anyhow::Result;
 use capnp::message::HeapAllocator;
 use rast::{
-    messages::c2_agent::c2_agent::agent_message,
     protocols::{tcp::*, *},
     settings::*,
 };
@@ -24,9 +23,10 @@ async fn main() -> Result<()> {
         },
     };
 
-    let mut c2 = RastC2::with_settings(conf);
-    c2.setup().await;
+    let mut c2 = RastC2::with_settings(conf).await?;
     c2.start().await;
+
+    // tui::run().await;
 
     Ok(())
 }

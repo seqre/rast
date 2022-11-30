@@ -15,6 +15,7 @@ pub type ProtoConnectionType = dyn ProtoConnection + Send + Sync;
 pub trait ProtoConnection {
     async fn send(&mut self, msg: Message) -> Result<()>;
     async fn recv(&mut self) -> Result<ConnectionOutput>;
+    async fn try_recv(&mut self) -> Result<Option<ConnectionOutput>>;
 
     fn get_ip(&self) -> Result<SocketAddr>;
 }

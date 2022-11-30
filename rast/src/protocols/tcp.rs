@@ -5,7 +5,7 @@ use std::{
 };
 
 use capnp::message::ReaderOptions;
-use capnp_futures::serialize::{read_message, write_message};
+use capnp_futures::serialize::{read_message, try_read_message, write_message};
 use futures_io::{AsyncRead, AsyncWrite};
 use serde_derive::Deserialize;
 use tokio::{
@@ -82,6 +82,12 @@ impl ProtoConnection for TcpConnection {
     async fn recv(&mut self) -> Result<ConnectionOutput> {
         // self.stream.readable().await?;
         let read = read_message(&mut self, ReaderOptions::new()).await?;
+        Ok(read)
+    }
+
+    async fn try_recv(&mut self) -> Result<Option<ConnectionOutput>> {
+        // self.stream.readable().await?;
+        let read = try_read_message(&mut self, ReaderOptions::new()).await?;
         Ok(read)
     }
 

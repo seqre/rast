@@ -1,5 +1,5 @@
 [package]
-name = "rast-c2"
+name = "rast-tui"
 version = "0.1.0"
 edition = "2021"
 authors = ["Marek 'seqre' Grzelak <marek.grzelak@seqre.dev>"]
@@ -7,16 +7,13 @@ description = "<description>"
 readme = "README.md"
 repository = "https://github.com/seqre/rast"
 license = "GPL-3.0-or-later"
-keywords = ["c2", "rat"]
+keywords = ["c2", "rat", "tui"]
 publish = false
 
 [dependencies]
 rast = { path = "../rast" }
 tokio = { version = "1.21", features = [ "full" ] }
 tokio-tungstenite = { version = "0.17" }
+tui = { version = "0.19" }
+crossterm = { version = "0.25" }
 anyhow = { version = "1.0" }
-capnp = { version = "0.15" } 
-capnp-futures = { version = "0.15" }
-
-# Replace with own custom one based off tokio
-bidirectional-channel = { version = "0.3" }

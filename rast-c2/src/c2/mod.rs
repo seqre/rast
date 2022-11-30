@@ -1,47 +1,116 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc, vec};
 
-use anyhow::Result;
-use capnp_futures::serialize::AsOutputSegments;
+use anyhow::{Error, Result};
+use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use rast::{
-    messages::c2_agent::c2_agent::{create_message, get_message},
+    messages::c2_agent::{create_message, get_message},
     protocols::{tcp::TcpFactory, *},
-    settings::Settings,
+    settings::{self, Settings},
+};
+use tokio::{
+    sync::{
+        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+        watch::{self, Receiver},
+    },
+    task::JoinHandle,
 };
 
+use crate::c2::ui_manager::{UiManager, UiRequest};
+
+mod ui_manager;
+
+#[derive(Debug)]
+pub enum Dummy {
+    Nothing,
+}
+
+pub enum C2Notification {
+    AgentConnected(SocketAddr),
+    AgentDisconnected(SocketAddr),
+}
+
 pub struct RastC2 {
-    settings: Settings,
-    servers: Vec<Arc<dyn ProtoServer>>,
-    connections: Vec<Arc<dyn ProtoConnection>>,
+    servers: Vec<JoinHandle<()>>,
+    connections: Vec<(SocketAddr, Arc<ProtoConnectionType>)>,
+    connections_rx: UnboundedReceiver<Arc<ProtoConnectionType>>,
+    ui: Option<UiManager>,
+    ui_rx: Option<Responder<ReceivedRequest<UiRequest, Dummy>>>,
 }
 
 impl RastC2 {
-    pub fn with_settings(settings: Settings) -> Self {
-        RastC2 {
-            settings,
-            servers: vec![],
-            connections: vec![],
-        }
-    }
+    pub async fn with_settings(settings: Settings) -> Result<Self> {
+        let (ctx, crx) = unbounded_channel();
+        let mut servers = vec![];
 
-    pub async fn setup(&mut self) -> Result<()> {
-        if let Some(conf) = &self.settings.server.tcp {
+        if let Some(conf) = &settings.server.tcp {
             let server = TcpFactory::new_server(conf).await?;
-            self.servers.push(server);
+            let cloned = ctx.clone();
+            let task = tokio::spawn(async move {
+                loop {
+                    if let Ok(conn) = server.get_conn().await {
+                        cloned.send(conn);
+                    }
+                }
+            });
+            servers.push(task);
         }
-        Ok(())
+
+        let (ui, ui_rx) = if let Some(conf) = &settings.server.ui {
+            let (utx, urx) = bounded(100);
+            let ui = UiManager::with_settings(conf, utx).await?;
+            (Some(ui), Some(urx))
+        } else {
+            (None, None)
+        };
+
+        if servers.is_empty() {
+            return Err(Error::msg("No servers running."));
+        }
+
+        let rastc2 = RastC2 {
+            servers,
+            connections: vec![],
+            connections_rx: crx,
+            ui,
+            ui_rx,
+        };
+
+        Ok(rastc2)
     }
 
-    pub async fn start(&self) -> Result<()> {
+    pub async fn start(&mut self) -> Result<()> {
         loop {
-            for server in &self.servers {
-                if let Ok(conn) = server.get_conn().await {
-                    tokio::spawn(RastC2::handle_client(conn));
+            while let Ok(conn) = self.connections_rx.try_recv() {
+                self.add_connection(conn).await?;
+            }
+
+            if let Some(ui_rx) = &self.ui_rx {
+                while let Ok(req) = ui_rx.try_recv() {
+                    self.handle_ui_request(req).await;
                 }
             }
         }
     }
 
-    async fn handle_client(mut conn: Arc<ProtoConnectionType>) -> Result<()> {
+    async fn add_connection(&mut self, conn: Arc<ProtoConnectionType>) -> Result<()> {
+        let ip = conn.get_ip()?;
+        if self.ui.is_some() {
+            self.ui
+                .as_ref()
+                .unwrap()
+                .message(C2Notification::AgentConnected(ip))
+                .await;
+        }
+        self.connections.push((ip, conn));
+        Ok(())
+    }
+
+    async fn handle_ui_request(&self, req: ReceivedRequest<UiRequest, Dummy>) -> Result<()> {
+        req.respond(Dummy::Nothing);
+        Ok(())
+    }
+
+    async fn _handle_connection(mut conn: Arc<ProtoConnectionType>) -> Result<()> {
         // let msg_r = conn.recv().await?;
         // println!("Message received: {}", msg_r);
 

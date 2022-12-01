@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, sync::Arc, vec};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+    vec,
+};
 
 use anyhow::Result;
 use bidirectional_channel::Requester;
@@ -19,8 +23,8 @@ pub enum UiRequest {}
 pub struct UiManager {
     c2_tx: Requester<UiRequest, Dummy>,
     servers: Vec<JoinHandle<()>>,
-    connections: Vec<(SocketAddr, Arc<ProtoConnectionType>)>,
-    connections_rx: UnboundedReceiver<Arc<ProtoConnectionType>>,
+    connections: Vec<(SocketAddr, Arc<Mutex<ProtoConnectionType>>)>,
+    connections_rx: UnboundedReceiver<Arc<Mutex<ProtoConnectionType>>>,
 }
 
 impl UiManager {
@@ -60,23 +64,30 @@ impl UiManager {
                 self.add_connection(conn).await?;
             }
 
-            for (ip, mut conn) in &self.connections {
-                self.handle_connection_message(conn).await?;
+            for (ip, conn) in &self.connections {
+                if let Ok(Some(msg)) = conn.lock().unwrap().try_recv().await {
+                    // do something
+                }
+                // self.handle_connection_message(conn).await?;
+                // cannot borrow self as mutable
             }
         }
     }
 
     pub async fn message(&self, notification: C2Notification) {}
 
-    async fn add_connection(&mut self, conn: Arc<ProtoConnectionType>) -> Result<()> {
-        let ip = conn.get_ip()?;
+    async fn add_connection(&mut self, conn: Arc<Mutex<ProtoConnectionType>>) -> Result<()> {
+        let ip = conn.lock().unwrap().get_ip()?;
         self.connections.push((ip, conn));
         Ok(())
     }
 
-    async fn handle_connection_message(&mut self, conn: Arc<ProtoConnectionType>) -> Result<()> {
-        let dupa = Arc::get_mut(&mut conn).unwrap().try_recv().await?;
-        // let dupa = conn.try_recv().await?;
-        Ok(())
-    }
+    // async fn handle_connection_message(
+    //    &mut self,
+    //    conn: &Arc<Mutex<ProtoConnectionType>>,
+    //) -> Result<()> {
+    //    let dupa = conn.lock().unwrap().try_recv().await?;
+    //    // let dupa = conn.try_recv().await?;
+    //    Ok(())
+    //}
 }

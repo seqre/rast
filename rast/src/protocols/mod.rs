@@ -1,4 +1,7 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -22,7 +25,7 @@ pub trait ProtoConnection {
 
 #[async_trait]
 pub trait ProtoServer: Send + Sync {
-    async fn get_conn(&self) -> Result<Arc<ProtoConnectionType>>;
+    async fn get_conn(&self) -> Result<Arc<Mutex<ProtoConnectionType>>>;
 }
 
 #[async_trait]
@@ -30,5 +33,5 @@ pub trait ProtoFactory {
     type Conf;
 
     async fn new_server(conf: &Self::Conf) -> Result<Arc<dyn ProtoServer>>;
-    async fn new_client(conf: &Self::Conf) -> Result<Arc<ProtoConnectionType>>;
+    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<ProtoConnectionType>>>;
 }

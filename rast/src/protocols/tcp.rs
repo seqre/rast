@@ -116,12 +116,12 @@ impl ProtoFactory for TcpFactory {
         }
     }
 
-    async fn new_client(conf: &Self::Conf) -> Result<Arc<ProtoConnectionType>> {
+    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<ProtoConnectionType>>> {
         let address = SocketAddr::new(conf.ip, conf.port);
         let stream = TcpStream::connect(address).await;
 
         match stream {
-            Ok(stream) => Ok(Arc::new(TcpConnection::new(stream))),
+            Ok(stream) => Ok(Arc::new(Mutex::new(TcpConnection::new(stream)))),
             Err(e) => Err(e.into()),
         }
     }
@@ -129,9 +129,9 @@ impl ProtoFactory for TcpFactory {
 
 #[async_trait]
 impl ProtoServer for TcpServer {
-    async fn get_conn(&self) -> Result<Arc<ProtoConnectionType>> {
+    async fn get_conn(&self) -> Result<Arc<Mutex<ProtoConnectionType>>> {
         match self.listener.accept().await {
-            Ok((stream, _address)) => Ok(Arc::new(TcpConnection::new(stream))),
+            Ok((stream, _address)) => Ok(Arc::new(Mutex::new(TcpConnection::new(stream)))),
             Err(e) => Err(e.into()),
         }
     }

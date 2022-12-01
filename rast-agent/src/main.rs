@@ -23,10 +23,10 @@ async fn main() -> Result<()> {
     };
 
     if let Some(conf) = &settings.server.tcp {
-        let mut client = TcpFactory::new_client(conf).await?;
+        let client = TcpFactory::new_client(conf).await?;
 
         loop {
-            let cmd = Arc::get_mut(&mut client).unwrap().recv().await?;
+            let cmd = client.lock().unwrap().recv().await?;
             let cmd = get_message(cmd).unwrap();
             let cmd = cmd.trim_end_matches('\0');
 
@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
             }
 
             let msg = create_message(&output);
-            Arc::get_mut(&mut client).unwrap().send(msg).await?;
+            client.lock().unwrap().send(msg).await?;
         }
     };
 

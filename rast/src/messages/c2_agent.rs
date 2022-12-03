@@ -1,11 +1,9 @@
-mod c2_agent_capnp {
-    include!(concat!(env!("OUT_DIR"), "/c2_agent_capnp.rs"));
-}
-
 use anyhow::Result;
 
-use super::c2_agent::c2_agent_capnp::agent_message;
-use crate::protocols::{ConnectionOutput, Message};
+use crate::{
+    c2_agent_capnp::*,
+    protocols::{ConnectionOutput, Message},
+};
 
 pub fn create_message(content: &str) -> Message {
     let mut message = ::capnp::message::Builder::new_default();

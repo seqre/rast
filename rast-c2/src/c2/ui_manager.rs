@@ -7,6 +7,7 @@ use std::{
 use anyhow::Result;
 use bidirectional_channel::Requester;
 use rast::{
+    messages::ui_request::*,
     protocols::{tcp::TcpFactory, *},
     settings,
 };
@@ -17,11 +18,8 @@ use tokio::{
 
 use crate::c2::{C2Notification, Dummy};
 
-#[derive(Debug)]
-pub enum UiRequest {}
-
 pub struct UiManager {
-    c2_tx: Requester<UiRequest, Dummy>,
+    c2_tx: Requester<UiRequest, UiResponse>,
     servers: Vec<JoinHandle<()>>,
     connections: Vec<(SocketAddr, Arc<Mutex<ProtoConnectionType>>)>,
     connections_rx: UnboundedReceiver<Arc<Mutex<ProtoConnectionType>>>,
@@ -30,7 +28,7 @@ pub struct UiManager {
 impl UiManager {
     pub async fn with_settings(
         conf: &settings::Ui,
-        c2_tx: Requester<UiRequest, Dummy>,
+        c2_tx: Requester<UiRequest, UiResponse>,
     ) -> Result<Self> {
         let (tx, rx) = unbounded_channel();
         let mut servers = vec![];

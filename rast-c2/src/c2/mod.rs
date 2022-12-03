@@ -7,9 +7,12 @@ use std::{
 use anyhow::{Error, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use rast::{
-    messages::c2_agent::{create_message, get_message},
+    messages::{
+        c2_agent::{create_message, get_message},
+        ui_request::*,
+    },
     protocols::{tcp::TcpFactory, *},
-    settings::{self, Settings},
+    settings::Settings,
 };
 use tokio::{
     sync::{
@@ -19,7 +22,7 @@ use tokio::{
     task::JoinHandle,
 };
 
-use crate::c2::ui_manager::{UiManager, UiRequest};
+use crate::c2::ui_manager::UiManager;
 
 mod ui_manager;
 
@@ -38,7 +41,7 @@ pub struct RastC2 {
     connections: Vec<(SocketAddr, Arc<Mutex<ProtoConnectionType>>)>,
     connections_rx: UnboundedReceiver<Arc<Mutex<ProtoConnectionType>>>,
     ui: Option<UiManager>,
-    ui_rx: Option<Responder<ReceivedRequest<UiRequest, Dummy>>>,
+    ui_rx: Option<Responder<ReceivedRequest<UiRequest, UiResponse>>>,
 }
 
 impl RastC2 {
@@ -109,8 +112,8 @@ impl RastC2 {
         Ok(())
     }
 
-    async fn handle_ui_request(&self, req: ReceivedRequest<UiRequest, Dummy>) -> Result<()> {
-        req.respond(Dummy::Nothing);
+    async fn handle_ui_request(&self, req: ReceivedRequest<UiRequest, UiResponse>) -> Result<()> {
+        req.respond(UiResponse::Pong);
         Ok(())
     }
 

@@ -78,20 +78,19 @@ impl AsyncRead for TcpConnection {
 }
 
 #[async_trait]
-impl ProtoConnection for TcpConnection {
-    async fn recv(&mut self) -> Result<ConnectionOutput> {
+impl<'a, B, R> ProtoConnection<'a, B, R> for TcpConnection {
+    async fn recv<M: CapnpRead<'a, Reader = R>>(&mut self) -> Result<M> {
         // self.stream.readable().await?;
         let read = read_message(&mut self, ReaderOptions::new()).await?;
         Ok(read)
     }
 
-    async fn try_recv(&mut self) -> Result<Option<ConnectionOutput>> {
-        // self.stream.readable().await?;
+    async fn try_recv<M: CapnpRead<'a, Reader = R>>(&mut self) -> Result<Option<M>> {
         let read = try_read_message(&mut self, ReaderOptions::new()).await?;
         Ok(read)
     }
 
-    async fn send(&mut self, msg: Message) -> Result<()> {
+    async fn send<M: CapnpWrite<'a, Builder = B>>(&mut self, msg: M) -> Result<()> {
         let write = write_message(&mut self, msg).await?;
         Ok(write)
     }
@@ -103,10 +102,10 @@ impl ProtoConnection for TcpConnection {
 }
 
 #[async_trait]
-impl ProtoFactory for TcpFactory {
+impl<'a, B, R> ProtoFactory<B, R> for TcpFactory {
     type Conf = TcpConf;
 
-    async fn new_server(conf: &Self::Conf) -> Result<Arc<dyn ProtoServer>> {
+    async fn new_server(conf: &Self::Conf) -> Result<Arc<dyn ProtoServer<B, R>>> {
         let address = SocketAddr::new(conf.ip, conf.port);
         let listener = TcpListener::bind(address).await;
 
@@ -116,7 +115,7 @@ impl ProtoFactory for TcpFactory {
         }
     }
 
-    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<ProtoConnectionType>>> {
+    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<dyn ProtoConnection<'a, B, R>>>> {
         let address = SocketAddr::new(conf.ip, conf.port);
         let stream = TcpStream::connect(address).await;
 
@@ -128,8 +127,8 @@ impl ProtoFactory for TcpFactory {
 }
 
 #[async_trait]
-impl ProtoServer for TcpServer {
-    async fn get_conn(&self) -> Result<Arc<Mutex<ProtoConnectionType>>> {
+impl<'a, B, R> ProtoServer<B, R> for TcpServer {
+    async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection<'a, B, R>>>> {
         match self.listener.accept().await {
             Ok((stream, _address)) => Ok(Arc::new(Mutex::new(TcpConnection::new(stream)))),
             Err(e) => Err(e.into()),

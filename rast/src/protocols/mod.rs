@@ -7,31 +7,29 @@ use anyhow::Result;
 use async_trait::async_trait;
 use capnp::{message::Reader, serialize::OwnedSegments};
 
+use crate::capnp_utils::{CapnpRead, CapnpWrite};
+
 pub mod tcp;
 // pub mod websocket;
 
-pub type Message = ::capnp::message::Builder<::capnp::message::HeapAllocator>;
-pub type ConnectionOutput = Reader<OwnedSegments>;
-pub type ProtoConnectionType = dyn ProtoConnection + Send + Sync;
-
 #[async_trait]
-pub trait ProtoConnection {
-    async fn send(&mut self, msg: Message) -> Result<()>;
-    async fn recv(&mut self) -> Result<ConnectionOutput>;
-    async fn try_recv(&mut self) -> Result<Option<ConnectionOutput>>;
+pub trait ProtoConnection<'a, B, R> {
+    async fn send<M: CapnpWrite<'a, Builder = B>>(&mut self, msg: M) -> Result<()>;
+    async fn recv<M: CapnpRead<'a, Reader = R>>(&mut self) -> Result<M>;
+    async fn try_recv<M: CapnpRead<'a, Reader = R>>(&mut self) -> Result<Option<M>>;
 
     fn get_ip(&self) -> Result<SocketAddr>;
 }
 
 #[async_trait]
-pub trait ProtoServer: Send + Sync {
-    async fn get_conn(&self) -> Result<Arc<Mutex<ProtoConnectionType>>>;
+pub trait ProtoServer<B, R>: Send + Sync {
+    async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection<B, R>>>>;
 }
 
 #[async_trait]
-pub trait ProtoFactory {
+pub trait ProtoFactory<B, R> {
     type Conf;
 
-    async fn new_server(conf: &Self::Conf) -> Result<Arc<dyn ProtoServer>>;
-    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<ProtoConnectionType>>>;
+    async fn new_server(conf: &Self::Conf) -> Result<Arc<dyn ProtoServer<B, R>>>;
+    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<dyn ProtoConnection<B, R>>>>;
 }

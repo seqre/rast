@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use capnp_futures::serialize::AsOutputSegments;
 use rast::{
-    messages::c2_agent::c2_agent::{create_message, get_message},
     protocols::{tcp::TcpFactory, *},
     settings::Settings,
 };

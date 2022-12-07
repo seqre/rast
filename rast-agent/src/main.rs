@@ -2,7 +2,6 @@ use std::{net::SocketAddr, process::Command, sync::Arc};
 
 use anyhow::Result;
 use rast::{
-    messages::c2_agent::c2_agent::{create_message, get_message},
     protocols::{tcp::*, *},
     settings::*,
 };

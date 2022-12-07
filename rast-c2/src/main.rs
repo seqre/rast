@@ -1,9 +1,7 @@
 use std::{io, net::SocketAddr};
 
 use anyhow::Result;
-use capnp::message::HeapAllocator;
 use rast::{
-    messages::c2_agent::c2_agent::agent_message,
     protocols::{tcp::*, *},
     settings::*,
 };

@@ -4,8 +4,6 @@ use std::{
     task::{Context, Poll},
 };
 
-use capnp::message::ReaderOptions;
-use capnp_futures::serialize::{read_message, write_message};
 use futures_io::{AsyncRead, AsyncWrite};
 use serde_derive::Deserialize;
 use tokio::{

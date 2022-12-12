@@ -4,4 +4,6 @@ members = [
   "rast",
   "rast-agent",
   "rast-c2",
+  "rast-cli",
+  #"rast-tui",
 ]

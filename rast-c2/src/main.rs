@@ -6,15 +6,18 @@ use rast::{
     settings::*,
 };
 use rast_c2::RastC2;
+use tracing::{info, instrument};
+use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Hello from server!");
+    tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::INFO)
+        .init();
 
     let conf = match Settings::new() {
         Ok(conf) => {
-            println!("Config:");
-            println!("{:?}", conf);
+            info!("{:?}", conf);
             conf
         },
         Err(e) => {
@@ -22,9 +25,10 @@ async fn main() -> Result<()> {
         },
     };
 
-    let mut c2 = RastC2::with_settings(conf);
-    c2.setup().await;
-    c2.start().await;
+    let mut c2 = RastC2::with_settings(conf).await?;
+    c2.run().await;
+
+    // tui::run().await;
 
     Ok(())
 }

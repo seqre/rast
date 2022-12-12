@@ -2,7 +2,7 @@ use std::env;
 
 use config::{Config, ConfigError, Environment, File};
 use glob::glob;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 use crate::protocols::tcp::TcpConf;
 
@@ -10,17 +10,24 @@ use crate::protocols::tcp::TcpConf;
 //#[allow(unused)]
 // pub struct Dummy {}
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Copy, Clone)]
 #[allow(unused)]
-pub struct Server {
+pub struct Ui {
     pub tcp: Option<TcpConf>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Copy, Clone)]
+#[allow(unused)]
+pub struct Server {
+    pub tcp: Option<TcpConf>,
+    pub ui: Option<Ui>,
+}
+
+#[derive(Debug, Deserialize, Copy, Clone)]
 #[allow(unused)]
 pub struct Agent {}
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Copy, Clone)]
 #[allow(unused)]
 pub struct Settings {
     pub server: Server,

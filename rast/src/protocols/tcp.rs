@@ -4,10 +4,9 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures_io::{AsyncRead, AsyncWrite};
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use tokio::{
-    io::ReadBuf,
+    io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{
         tcp::{OwnedReadHalf, OwnedWriteHalf},
         TcpListener, TcpStream,
@@ -28,7 +27,7 @@ pub struct TcpConnection {
     writer: OwnedWriteHalf,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Copy, Clone)]
 pub struct TcpConf {
     pub ip: IpAddr,
     pub port: u16,
@@ -41,53 +40,8 @@ impl TcpConnection {
     }
 }
 
-/// Absolutely disgusting
-impl AsyncWrite for TcpConnection {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<std::io::Result<usize>> {
-        tokio::io::AsyncWrite::poll_write(Pin::new(self.project().writer), cx, buf)
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        tokio::io::AsyncWrite::poll_flush(Pin::new(self.project().writer), cx)
-    }
-
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        tokio::io::AsyncWrite::poll_shutdown(Pin::new(self.project().writer), cx)
-    }
-}
-
-/// Absolutely disgusting
-impl AsyncRead for TcpConnection {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<std::io::Result<usize>> {
-        let readbuf = &mut ReadBuf::new(buf);
-        match tokio::io::AsyncRead::poll_read(Pin::new(self.project().reader), cx, readbuf) {
-            Poll::Ready(_) => Poll::Ready(std::io::Result::Ok(readbuf.filled().len())),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
 #[async_trait]
 impl ProtoConnection for TcpConnection {
-    async fn recv(&mut self) -> Result<ConnectionOutput> {
-        // self.stream.readable().await?;
-        let read = read_message(&mut self, ReaderOptions::new()).await?;
-        Ok(read)
-    }
-
-    async fn send(&mut self, msg: Message) -> Result<()> {
-        let write = write_message(&mut self, msg).await?;
-        Ok(write)
-    }
-
     fn get_ip(&self) -> Result<SocketAddr> {
         let ip = self.reader.peer_addr()?;
         Ok(ip)
@@ -108,12 +62,12 @@ impl ProtoFactory for TcpFactory {
         }
     }
 
-    async fn new_client(conf: &Self::Conf) -> Result<Arc<ProtoConnectionType>> {
+    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
         let address = SocketAddr::new(conf.ip, conf.port);
         let stream = TcpStream::connect(address).await;
 
         match stream {
-            Ok(stream) => Ok(Arc::new(TcpConnection::new(stream))),
+            Ok(stream) => Ok(Arc::new(Mutex::new(TcpConnection::new(stream)))),
             Err(e) => Err(e.into()),
         }
     }
@@ -121,10 +75,53 @@ impl ProtoFactory for TcpFactory {
 
 #[async_trait]
 impl ProtoServer for TcpServer {
-    async fn get_conn(&self) -> Result<Arc<ProtoConnectionType>> {
+    async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
         match self.listener.accept().await {
-            Ok((stream, _address)) => Ok(Arc::new(TcpConnection::new(stream))),
+            Ok((stream, _address)) => Ok(Arc::new(Mutex::new(TcpConnection::new(stream)))),
             Err(e) => Err(e.into()),
         }
+    }
+}
+
+impl AsyncRead for TcpConnection {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(self.project().reader).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for TcpConnection {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        Pin::new(self.project().writer).poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
+        Pin::new(self.project().writer).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        Pin::new(self.project().writer).poll_shutdown(cx)
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[futures_io::IoSlice<'_>],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        Pin::new(self.project().writer).poll_write_vectored(cx, bufs)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.writer.is_write_vectored()
     }
 }

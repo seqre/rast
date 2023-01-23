@@ -18,11 +18,11 @@ async fn main() -> Result<()> {
     // TODO: add embedding during compile
     let settings = match Settings::new() {
         Ok(settings) => {
-            info!("{:?}", settings);
+            info!("{settings:?}");
             settings
         },
         Err(e) => {
-            panic!("{:?}", e);
+            panic!("{e:?}");
         },
     };
 

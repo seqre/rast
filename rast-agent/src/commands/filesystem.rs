@@ -12,8 +12,11 @@ use crate::{
     context::Context,
 };
 
+#[derive(Default)]
 pub struct Cd;
+#[derive(Default)]
 pub struct Ls;
+#[derive(Default)]
 pub struct Pwd;
 
 impl Cd {

@@ -40,7 +40,7 @@ impl Settings {
 
         let conf = Config::builder()
             .add_source(File::with_name("config/default"))
-            .add_source(File::with_name(&format!("config/{}", mode)))
+            .add_source(File::with_name(&format!("config/{mode}")))
             .add_source(
                 glob("config/custom/*")
                     .unwrap()

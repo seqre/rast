@@ -17,11 +17,11 @@ async fn main() -> Result<()> {
 
     let conf = match Settings::new() {
         Ok(conf) => {
-            info!("{:?}", conf);
+            info!("{conf:?}");
             conf
         },
         Err(e) => {
-            panic!("{:?}", e);
+            panic!("{e:?}");
         },
     };
 

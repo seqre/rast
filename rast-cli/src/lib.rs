@@ -42,10 +42,10 @@ impl Display for ShellState {
         let mut prompt = String::from("[rast]");
 
         if let Some(target) = &self.target {
-            prompt.push_str(&String::from(format!("[{}]", target)));
+            prompt.push_str(&format!("[{target}]"));
         }
 
-        write!(f, "{} > ", prompt)
+        write!(f, "{prompt} > ")
     }
 }
 
@@ -129,7 +129,7 @@ async fn get_targets(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()
     }
 
     for (i, target) in state.targets.iter().enumerate() {
-        println!("[{}] {}", i, target);
+        println!("[{i}] {target}");
     }
 
     Ok(())
@@ -149,14 +149,14 @@ async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()
     let mut command = String::new();
     for arg in args.iter().skip(1) {
         command.push_str(arg);
-        command.push_str(" ");
+        command.push(' ');
     }
 
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
     let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
-    let (ip, port) = state.target.as_ref().unwrap().split_once(":").unwrap();
+    let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
 
     let request = UiRequest::Command(
         SocketAddr::new(IpAddr::from_str(ip).unwrap(), u16::from_str(port).unwrap()),
@@ -170,7 +170,7 @@ async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()
     let output: UiResponse = serde_json::from_slice(&bytes)?;
 
     if let UiResponse::Command(output) = output {
-        println!("{}", output);
+        println!("{output}");
     }
 
     Ok(())
@@ -186,14 +186,14 @@ fn set_target(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
 
     if let Some(target) = state.targets.get(target) {
         state.target = Some(target.to_string());
-        println!("Target successfully set to: {}", target);
+        println!("Target successfully set to: {target}");
     }
 
     Ok(())
 }
 
 fn show_state(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
-    println!("{:#?}", state);
+    println!("{state:#?}");
     Ok(())
 }
 

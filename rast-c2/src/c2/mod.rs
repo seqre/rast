@@ -143,7 +143,7 @@ impl RastC2 {
                 let result = frame.send(Bytes::from(request)).await;
                 let bytes = frame.next().await.unwrap().unwrap();
 
-                let output = serde_json::from_slice(&bytes.as_ref());
+                let output = serde_json::from_slice(bytes.as_ref());
                 let output = output?;
                 let AgentMessage::AgentResponse(AgentResponse::CommandResponse(output)) = output else { todo!()};
 

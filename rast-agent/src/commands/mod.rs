@@ -36,6 +36,7 @@ pub trait Command: Send + Sync {
     async fn execute(&self, ctx: Arc<RwLock<Context>>, args: Vec<String>) -> Result<CommandOutput>;
 }
 
+#[derive(Default)]
 pub struct Commands {
     commands: HashMap<String, Box<dyn Command>>,
 }

@@ -1,5 +1,6 @@
 use std::{env::current_dir, path::PathBuf};
 
+#[derive(Default)]
 pub struct Context {
     current_dir: PathBuf,
 }

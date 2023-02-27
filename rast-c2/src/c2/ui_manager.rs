@@ -1,3 +1,5 @@
+//! UI incoming connections handler.
+
 use std::{fmt::Debug, net::SocketAddr, ops::DerefMut, sync::Arc, task::Poll, vec};
 
 use anyhow::Result;

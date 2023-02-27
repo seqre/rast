@@ -1,3 +1,5 @@
+//! The Rast project commonly used functionalities.
+
 pub mod messages;
 pub mod protocols;
 pub mod settings;

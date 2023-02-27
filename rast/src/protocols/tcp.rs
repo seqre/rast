@@ -1,3 +1,4 @@
+//! TCP implementation of [ProtoConnection].
 use std::{
     net::IpAddr,
     pin::Pin,

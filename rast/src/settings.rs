@@ -1,3 +1,5 @@
+//! Configuration for binaries.
+
 use std::env;
 
 use config::{Config, ConfigError, Environment, File};

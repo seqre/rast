@@ -1,3 +1,5 @@
+//! Implementations of [ProtoConnection] for specific protocols.
+
 use std::{fmt::Debug, net::SocketAddr, sync::Arc};
 
 use anyhow::Result;

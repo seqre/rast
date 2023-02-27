@@ -1,3 +1,5 @@
+//! Implementations of commands used in the agent.
+
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},

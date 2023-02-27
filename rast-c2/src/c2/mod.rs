@@ -28,12 +28,14 @@ use crate::c2::ui_manager::UiManager;
 
 mod ui_manager;
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub enum Dummy {
     Nothing,
 }
 
 // TODO: implement
+#[doc(hidden)]
 pub enum C2Notification {
     AgentConnected(SocketAddr),
     AgentDisconnected(SocketAddr),
@@ -48,6 +50,7 @@ pub struct RastC2 {
 }
 
 impl RastC2 {
+    /// Creates new instance using provided [Settings].
     pub async fn with_settings(settings: Settings) -> Result<Self> {
         let (ctx, crx) = unbounded_channel();
         let mut servers = vec![];
@@ -88,6 +91,7 @@ impl RastC2 {
         Ok(rastc2)
     }
 
+    /// Starts C2 server.
     pub async fn run(&mut self) -> Result<()> {
         info!("RastC2 instance running");
         loop {

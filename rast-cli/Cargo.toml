@@ -21,4 +21,4 @@ futures-util = { workspace = true }
 bytes = { workspace = true }
 
 crossterm = { version = "0.25" }
-shellfish = { version = "0.7", features = [ "async", "tokio" ]}
+shellfish = { version = "0.7", default-features = true, features = [ "async", "tokio" ]}

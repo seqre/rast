@@ -18,7 +18,7 @@ use rast::{
 };
 use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
 use tokio::sync::Mutex;
-use tokio_util::codec::{BytesCodec};
+use tokio_util::codec::BytesCodec;
 
 pub type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
 

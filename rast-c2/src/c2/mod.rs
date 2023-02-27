@@ -1,15 +1,9 @@
 //! C2 implementation.
 
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    ops::{DerefMut},
-    sync::Arc,
-    vec,
-};
+use std::{collections::HashMap, net::SocketAddr, ops::DerefMut, sync::Arc, vec};
 
 use anyhow::{Error, Result};
-use bidirectional_channel::{ReceivedRequest};
+use bidirectional_channel::ReceivedRequest;
 use bytes::Bytes;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
@@ -27,8 +21,8 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tokio_util::codec::{BytesCodec};
-use tracing::{info};
+use tokio_util::codec::BytesCodec;
+use tracing::info;
 
 use crate::c2::ui_manager::UiManager;
 
@@ -146,10 +140,7 @@ impl RastC2 {
 
                 let output = serde_json::from_slice(bytes.as_ref());
                 let output = output?;
-                let AgentMessage::AgentResponse(AgentResponse::CommandResponse(output)) = output
-                else {
-                    todo!()
-                };
+                let AgentMessage::AgentResponse(AgentResponse::CommandResponse(output)) = output else { todo!()};
 
                 UiResponse::Command(output)
             },

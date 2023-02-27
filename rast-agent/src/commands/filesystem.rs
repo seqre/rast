@@ -72,13 +72,13 @@ impl Command for Cd {
 
     async fn execute(&self, ctx: Arc<RwLock<Context>>, args: Vec<String>) -> Result<CommandOutput> {
         if args.len() > 1 {
-            anyhow!("Only one argument supported for cd");
+            return Err(anyhow!("Only one argument supported for cd"));
         }
 
         let path = PathBuf::from(args.get(0).unwrap());
 
         if !path.is_dir() {
-            anyhow!("No access or directory do not exist");
+            return Err(anyhow!("No access or directory do not exist"));
         }
 
         let mut ctx = ctx.write().unwrap();
@@ -114,13 +114,13 @@ impl Command for Ls {
         }
 
         if args.len() > 1 {
-            anyhow!("Only one argument supported for ls");
+            return Err(anyhow!("Only one argument supported for ls"));
         }
 
         let path = PathBuf::from(args.get(0).unwrap());
 
         if !path.is_dir() {
-            anyhow!("No access or directory do not exist");
+            return Err(anyhow!("No access or directory do not exist"));
         }
 
         let output = Ls::get_dir_contents(path);
@@ -149,7 +149,7 @@ impl Command for Pwd {
 
     async fn execute(&self, ctx: Arc<RwLock<Context>>, args: Vec<String>) -> Result<CommandOutput> {
         if !args.is_empty() {
-            anyhow!("No arguments supported for pwd");
+            return Err(anyhow!("No arguments supported for pwd"));
         }
 
         let ctx = ctx.read().unwrap();

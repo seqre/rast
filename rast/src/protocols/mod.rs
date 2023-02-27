@@ -16,8 +16,10 @@ use tokio_util::codec::{BytesCodec, Framed};
 pub mod tcp;
 // pub mod websocket;
 
+/// Established connection over any network protocol.
 #[async_trait]
 pub trait ProtoConnection: Send + Sync + Unpin + AsyncRead + AsyncWrite {
+    /// Gets IP of the remote agent.
     fn get_ip(&self) -> Result<SocketAddr>;
 }
 
@@ -29,16 +31,23 @@ impl Debug for dyn ProtoConnection {
     }
 }
 
+/// Server-side of any network protocol.
 #[async_trait]
 pub trait ProtoServer: Send + Sync {
+    /// Waits for a new connection from the agent.
     async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection>>>;
 }
 
+/// Creates new [ProtoConnection] and [ProtoServer] for network
+/// protocol.
 #[async_trait]
 pub trait ProtoFactory {
     type Conf;
 
+    /// Returns new server for network protocol.
     async fn new_server(conf: &Self::Conf) -> Result<Arc<dyn ProtoServer>>;
+
+    /// Returns new connection for network protocol.
     async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<dyn ProtoConnection>>>;
 }
 

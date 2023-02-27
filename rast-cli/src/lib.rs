@@ -1,3 +1,5 @@
+//! The Command-line Interface part of the Rast project.
+
 use std::{
     error::Error,
     fmt::Display,

@@ -1,3 +1,5 @@
+//! Types for C2 <-> Agent communication.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

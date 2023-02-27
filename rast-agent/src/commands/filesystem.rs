@@ -1,3 +1,5 @@
+//! Filesystem-related commands.
+
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},

@@ -1,3 +1,5 @@
+//! The agent part of the Rast project.
+
 use std::{
     ops::DerefMut,
     sync::{Arc, RwLock},

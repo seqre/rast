@@ -12,12 +12,14 @@ use crate::protocols::tcp::TcpConf;
 //#[allow(unused)]
 // pub struct Dummy {}
 
+/// UI-related configuration values.
 #[derive(Debug, Deserialize, Copy, Clone)]
 #[allow(unused)]
 pub struct Ui {
     pub tcp: Option<TcpConf>,
 }
 
+/// C2 server-related configuration values.
 #[derive(Debug, Deserialize, Copy, Clone)]
 #[allow(unused)]
 pub struct Server {
@@ -25,10 +27,12 @@ pub struct Server {
     pub ui: Option<Ui>,
 }
 
+/// Agent-related configuration values.
 #[derive(Debug, Deserialize, Copy, Clone)]
 #[allow(unused)]
 pub struct Agent {}
 
+/// General configuration values.
 #[derive(Debug, Deserialize, Copy, Clone)]
 #[allow(unused)]
 pub struct Settings {

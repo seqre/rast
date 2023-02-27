@@ -16,18 +16,20 @@ use tokio::{
 
 use crate::protocols::*;
 
+/// Creates [ProtoServer] and [ProtoConnection] for TCP communication.
 pub struct TcpFactory {}
 
-pub struct TcpServer {
+struct TcpServer {
     listener: TcpListener,
 }
 
 #[pin_project::pin_project]
-pub struct TcpConnection {
+struct TcpConnection {
     reader: OwnedReadHalf,
     writer: OwnedWriteHalf,
 }
 
+/// TCP connection related configuration values.
 #[derive(Debug, Deserialize, Copy, Clone)]
 pub struct TcpConf {
     pub ip: IpAddr,

@@ -8,3 +8,19 @@ members = [
   "rast-cli",
   #"rast-tui",
 ]
+
+[workspace.dependencies]
+tokio = { version = "1.21" }
+tokio-util = { version = "0.7" }
+anyhow = { version = "1.0" }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3" }
+serde = { version = "1.0" }
+serde_json = { version = "1.0" }
+futures-util = { version = "0.3" }
+bytes = { version = "1.3" }
+async-trait = { version = "0.1" }
+
+[profile.release]
+lto = true
+strip = true

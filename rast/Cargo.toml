@@ -11,8 +11,8 @@ keywords = ["c2", "rat"]
 publish = false
 
 [dependencies]
-tokio = { workspace = true, features = [ "full" ] }
-tokio-util = { workspace = true, features = [ "full" ] }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

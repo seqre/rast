@@ -14,10 +14,15 @@ use crate::{
     context::Context,
 };
 
+/// Change directory.
 #[derive(Default)]
 pub struct Cd;
+
+/// Print contents of the directory.
 #[derive(Default)]
 pub struct Ls;
+
+/// Print current directory.
 #[derive(Default)]
 pub struct Pwd;
 

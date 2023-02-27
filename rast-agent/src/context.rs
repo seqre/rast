@@ -2,6 +2,7 @@
 
 use std::{env::current_dir, path::PathBuf};
 
+/// Context for [RastAgent](crate::RastAgent) built-in commands.
 #[derive(Default)]
 pub struct Context {
     current_dir: PathBuf,

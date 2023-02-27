@@ -31,6 +31,7 @@ pub struct RastAgent {
 }
 
 impl RastAgent {
+    /// Creates new instance using provided [Settings].
     pub async fn with_settings(settings: Settings) -> Result<Self> {
         let connection = if let Some(conf) = &settings.server.tcp {
             TcpFactory::new_client(conf).await
@@ -46,6 +47,7 @@ impl RastAgent {
         })
     }
 
+    /// Starts execution.
     pub async fn run(&mut self) -> Result<()> {
         info!("RastAgent running");
 

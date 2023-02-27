@@ -21,6 +21,7 @@ use tokio::{
 use tokio_util::codec::BytesCodec;
 use tracing::info;
 
+/// Manager of the UI connections.
 #[derive(Debug)]
 pub struct UiManager {
     inner_thread: JoinHandle<()>,
@@ -44,6 +45,7 @@ impl Debug for InnerUiManager {
 }
 
 impl UiManager {
+    /// Creates new instance using provided [UI settings](settings::Ui)
     pub async fn with_settings(conf: &settings::Ui) -> Result<Self> {
         let (tx, rx) = bounded(100);
         let mut inner = InnerUiManager::with_settings(conf, tx).await?;
@@ -65,6 +67,7 @@ impl UiManager {
     //    todo!()
     //}
 
+    /// Returns an attempt of getting [UI request](UiRequest).
     #[tracing::instrument]
     pub fn try_recv_request(&self) -> Result<ReceivedRequest<UiRequest, UiResponse>> {
         match self.requests.try_recv() {
@@ -75,7 +78,7 @@ impl UiManager {
 }
 
 impl InnerUiManager {
-    pub async fn with_settings(
+    async fn with_settings(
         conf: &settings::Ui,
         requester: Requester<UiRequest, UiResponse>,
     ) -> Result<Self> {

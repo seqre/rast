@@ -4,8 +4,11 @@ use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
 
+// TODO: redo this shit
+
 type Ip = SocketAddr;
 
+/// Task request from UI to C2.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum UiRequest {
     Ping,
@@ -14,6 +17,7 @@ pub enum UiRequest {
     Command(Ip, String),
 }
 
+/// Task response from C2 to UI.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum UiResponse {
     Pong,

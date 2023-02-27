@@ -20,8 +20,9 @@ use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
 use tokio::sync::Mutex;
 use tokio_util::codec::BytesCodec;
 
-pub type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
+type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
 
+/// Local state of working connections.
 #[derive(Debug)]
 pub struct ShellState {
     conn: Arc<Mutex<dyn ProtoConnection>>,
@@ -51,6 +52,7 @@ impl Display for ShellState {
     }
 }
 
+/// Creates shell.
 pub fn get_shell(
     state: ShellState,
 ) -> Shell<'static, ShellState, impl Display, DefaultAsyncHandler> {
@@ -91,6 +93,7 @@ pub fn get_shell(
 
 // async fn send_request(request: UiRequest) -> Result<UiResponse> {}
 
+/// Sends [UiRequest::Ping] to the C2 server to check connectivity.
 async fn ping(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
@@ -112,6 +115,7 @@ async fn ping(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
     Ok(())
 }
 
+/// Gets all agents that C2 server is connected to.
 async fn get_targets(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
@@ -137,6 +141,7 @@ async fn get_targets(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()
     Ok(())
 }
 
+/// Executes command on the specified agent.
 async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
@@ -178,6 +183,7 @@ async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()
     Ok(())
 }
 
+/// Locally set target to specified agent.
 fn set_target(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
     if args.len() != 2 {
         println!("Incorrect argument number");

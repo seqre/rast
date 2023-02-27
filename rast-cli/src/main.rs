@@ -5,7 +5,7 @@ use rast::{
 };
 use rast_cli::{get_shell, ShellState};
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     // tracing_subscriber::fmt()
     //    .with_max_level(LevelFilter::INFO)

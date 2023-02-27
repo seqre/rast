@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use bytes::Bytes;
-use commands::{Command, Commands};
+use commands::Commands;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     messages::c2_agent::{AgentMessage, AgentResponse, C2Request},
@@ -16,7 +16,7 @@ use rast::{
 };
 use tokio::{process::Command as SystemCommand, sync::Mutex};
 use tokio_util::codec::BytesCodec;
-use tracing::{info, instrument};
+use tracing::info;
 
 use crate::context::Context;
 
@@ -76,7 +76,7 @@ impl RastAgent {
                 let response =
                     AgentMessage::AgentResponse(AgentResponse::CommandResponse(response));
                 let response = serde_json::to_vec(&response).unwrap();
-                let result = frame.send(Bytes::from(response)).await;
+                let _result = frame.send(Bytes::from(response)).await;
             }
         }
     }

@@ -1,12 +1,7 @@
-use std::{io, net::SocketAddr};
-
 use anyhow::Result;
-use rast::{
-    protocols::{tcp::*, *},
-    settings::*,
-};
+use rast::settings::*;
 use rast_c2::RastC2;
-use tracing::{info, instrument};
+use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main]

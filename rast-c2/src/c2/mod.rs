@@ -1,15 +1,9 @@
 //! C2 implementation.
 
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    ops::{Deref, DerefMut},
-    sync::Arc,
-    vec,
-};
+use std::{collections::HashMap, net::SocketAddr, ops::DerefMut, sync::Arc, vec};
 
 use anyhow::{Error, Result};
-use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
+use bidirectional_channel::ReceivedRequest;
 use bytes::Bytes;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
@@ -22,14 +16,13 @@ use rast::{
 };
 use tokio::{
     sync::{
-        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
-        watch::{self, Receiver},
+        mpsc::{unbounded_channel, UnboundedReceiver},
         Mutex,
     },
     task::JoinHandle,
 };
-use tokio_util::codec::{BytesCodec, Framed};
-use tracing::{info, instrument};
+use tokio_util::codec::BytesCodec;
+use tracing::info;
 
 use crate::c2::ui_manager::UiManager;
 
@@ -142,7 +135,7 @@ impl RastC2 {
                 let request = AgentMessage::C2Request(C2Request::ExecCommand(cmd.to_string()));
                 let request = serde_json::to_vec(&request)?;
 
-                let result = frame.send(Bytes::from(request)).await;
+                let _result = frame.send(Bytes::from(request)).await;
                 let bytes = frame.next().await.unwrap().unwrap();
 
                 let output = serde_json::from_slice(bytes.as_ref());
@@ -153,7 +146,7 @@ impl RastC2 {
             },
         };
         info!("{:?}", response);
-        let result = req.respond(response);
+        let _result = req.respond(response);
         Ok(())
     }
 }

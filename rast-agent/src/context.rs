@@ -1,3 +1,5 @@
+//! Context data of agent shell.
+
 use std::{env::current_dir, path::PathBuf};
 
 #[derive(Default)]

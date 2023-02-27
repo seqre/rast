@@ -1,3 +1,5 @@
+//! Types for C2 <-> UI communication.
+
 use std::net::SocketAddr;
 
 

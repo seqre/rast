@@ -1,3 +1,5 @@
+//! C2 implementation.
+
 use std::{
     collections::HashMap,
     net::SocketAddr,

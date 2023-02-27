@@ -1,3 +1,5 @@
+//! The C2 server part of the Rast project.
+
 pub mod c2;
 
 pub use c2::RastC2;

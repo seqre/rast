@@ -1,11 +1,7 @@
-
-
 use anyhow::Result;
-use rast::{
-    settings::*,
-};
+use rast::settings::*;
 use rast_c2::RastC2;
-use tracing::{info};
+use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main]

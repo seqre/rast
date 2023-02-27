@@ -5,8 +5,8 @@ use std::{fmt::Debug, net::SocketAddr, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use bytes::Bytes;
-use futures_util::{sink::SinkExt};
-use serde::{Serialize};
+use futures_util::sink::SinkExt;
+use serde::Serialize;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::Mutex,

@@ -1,12 +1,9 @@
-
-
 use anyhow::{anyhow, Result};
 use rast::{
     protocols::{tcp::TcpFactory, ProtoFactory},
     settings::Settings,
 };
 use rast_cli::{get_shell, ShellState};
-
 
 #[tokio::main]
 async fn main() -> Result<()> {

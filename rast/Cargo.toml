@@ -11,16 +11,19 @@ keywords = ["c2", "rat"]
 publish = false
 
 [dependencies]
+tokio = { workspace = true, features = [ "full" ] }
+tokio-util = { workspace = true, features = [ "full" ] }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures-util = { workspace = true }
+bytes = { workspace = true }
+tokio-tungstenite = { workspace = true }
+async-trait = { workspace = true }
+
 config = { version = "0.13" }
-serde = { version = "1.0" }
-serde_json = { version = "1.0" }
-tokio = { version = "1.21", features = [ "full" ] }
-tokio-util = { version = "0.7", features = [ "full" ] }
-tokio-tungstenite = { version = "0.20" }
-async-trait = { version = "0.1" }
 glob = { version = "0.3" }
-anyhow = { version = "1.0" }
-futures-util = { version = "0.3" }
 futures-io = { version = "0.3" }
 pin-project = "1.0"
-bytes = { version = "1.3" }

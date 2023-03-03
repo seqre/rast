@@ -10,9 +10,9 @@ pub struct Context {
 
 impl Context {
     pub fn new() -> Self {
-        Context {
-            current_dir: current_dir().unwrap(),
-        }
+        let current_dir = current_dir().expect("Failed to get current directory, panicking!");
+
+        Context { current_dir }
     }
 
     pub fn get_dir(&self) -> PathBuf {

@@ -12,11 +12,11 @@ async fn main() -> Result<()> {
 
     let conf = match Settings::new() {
         Ok(conf) => {
-            info!("{conf:?}");
+            info!("Parsed settings: {conf:?}");
             conf
         },
         Err(e) => {
-            panic!("{e:?}");
+            panic!("Failed parsing settings: {e:?}");
         },
     };
 

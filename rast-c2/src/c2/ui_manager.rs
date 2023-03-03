@@ -19,7 +19,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_util::codec::BytesCodec;
-use tracing::info;
+use tracing::{debug, info};
 
 /// Manager of the UI connections.
 #[derive(Debug)]
@@ -50,7 +50,9 @@ impl UiManager {
         let (tx, rx) = bounded(100);
         let mut inner = InnerUiManager::with_settings(conf, tx).await?;
         let inner = tokio::spawn(async move {
-            inner.run().await;
+            if let Err(e) = inner.run().await {
+                debug!("Failed to start InnerUiManager: {:?}", e);
+            };
         });
 
         let ui = UiManager {
@@ -92,8 +94,10 @@ impl InnerUiManager {
                 loop {
                     if let Ok(conn) = server.get_conn().await {
                         info!("Ui Server got connection");
-                        cloned.send(conn);
-                        info!("Ui connection sent")
+                        match cloned.send(conn) {
+                            Ok(_) => info!("Ui connection sent"),
+                            Err(e) => debug!("Failed to send UI connection: {:?}", e),
+                        };
                     }
                 }
             });
@@ -140,14 +144,15 @@ impl InnerUiManager {
                     info!("Response: {:?}", response);
                     let response = response.unwrap();
                     let response = serde_json::to_vec(&response).unwrap();
-                    frame.send(Bytes::from(response)).await;
+                    if let Err(e) = frame.send(Bytes::from(response)).await {
+                        debug!("Failed to send UI response: {:?}", e);
+                    };
                 }
             }
         });
         // info!("post task");
         self.connections.push((ip, task));
         // info!("{:?}", self.connections);
-        todo!();
         Ok(())
     }
 }

@@ -38,6 +38,7 @@ impl Ls {
     }
 
     fn get_dir_contents(path: PathBuf) -> Vec<String> {
+        // TODO: fix error handling
         path.read_dir()
             .unwrap()
             .filter(|e| e.is_ok())
@@ -75,12 +76,14 @@ impl Command for Cd {
             return Err(anyhow!("Only one argument supported for cd"));
         }
 
+        // TODO: fix error handling
         let path = PathBuf::from(args.get(0).unwrap());
 
         if !path.is_dir() {
             return Err(anyhow!("No access or directory do not exist"));
         }
 
+        // TODO: fix error handling
         let mut ctx = ctx.write().unwrap();
         ctx.change_dir(path);
 
@@ -108,6 +111,7 @@ impl Command for Ls {
 
     async fn execute(&self, ctx: Arc<RwLock<Context>>, args: Vec<String>) -> Result<CommandOutput> {
         if args.is_empty() {
+            // TODO: fix error handling
             let ctx = ctx.read().unwrap();
             let output = Ls::get_dir_contents(ctx.get_dir());
             return Ok(CommandOutput::ListText(output));
@@ -117,6 +121,7 @@ impl Command for Ls {
             return Err(anyhow!("Only one argument supported for ls"));
         }
 
+        // TODO: fix error handling
         let path = PathBuf::from(args.get(0).unwrap());
 
         if !path.is_dir() {
@@ -152,6 +157,7 @@ impl Command for Pwd {
             return Err(anyhow!("No arguments supported for pwd"));
         }
 
+        // TODO: fix error handling
         let ctx = ctx.read().unwrap();
         let wd = ctx.get_dir();
 

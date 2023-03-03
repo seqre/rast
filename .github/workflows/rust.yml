@@ -21,7 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         rust: ["stable", "nightly"]
-        os: [ubuntu-latest, macos-latest, windows-2019]
+        #os: [ubuntu-latest, macos-latest, windows-2019]
+        # TEMPORARY CHANGE until better solution with shellfish is found
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout source

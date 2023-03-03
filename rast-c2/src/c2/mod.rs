@@ -22,7 +22,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_util::codec::BytesCodec;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::c2::ui_manager::UiManager;
 
@@ -61,7 +61,9 @@ impl RastC2 {
             let task = tokio::spawn(async move {
                 loop {
                     if let Ok(conn) = server.get_conn().await {
-                        cloned.send(conn);
+                        if let Err(e) = cloned.send(conn) {
+                            debug!("Failed to start TCP server: {:?}", e);
+                        };
                     }
                 }
             });
@@ -103,7 +105,9 @@ impl RastC2 {
             if let Some(ui) = &self.ui {
                 while let Ok(req) = ui.try_recv_request() {
                     info!("Received UI request");
-                    self.handle_ui_request(req).await;
+                    if let Err(e) = self.handle_ui_request(req).await {
+                        debug!("Failed to handle UI request: {:?}", e);
+                    };
                 }
             }
         }

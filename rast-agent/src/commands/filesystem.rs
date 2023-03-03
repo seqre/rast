@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use tracing::debug;
 
 use super::CommandOutput;
 use crate::{
@@ -37,13 +38,21 @@ impl Ls {
         Ls {}
     }
 
-    fn get_dir_contents(path: PathBuf) -> Vec<String> {
-        // TODO: fix error handling
-        path.read_dir()
-            .unwrap()
+    fn get_dir_contents(path: PathBuf) -> Result<Vec<String>> {
+        let dir_entries = match path.read_dir() {
+            Ok(entries) => entries,
+            Err(e) => {
+                debug!("Failed to read directory contents: {:?}", e);
+                return Err(e.into());
+            },
+        };
+
+        let out = dir_entries
             .filter(|e| e.is_ok())
-            .map(|e| e.unwrap().file_name().into_string().unwrap())
-            .collect()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into())
+            .collect();
+
+        Ok(out)
     }
 }
 
@@ -76,7 +85,6 @@ impl Command for Cd {
             return Err(anyhow!("Only one argument supported for cd"));
         }
 
-        // TODO: fix error handling
         let path = PathBuf::from(args.get(0).unwrap());
 
         if !path.is_dir() {
@@ -113,7 +121,10 @@ impl Command for Ls {
         if args.is_empty() {
             // TODO: fix error handling
             let ctx = ctx.read().unwrap();
-            let output = Ls::get_dir_contents(ctx.get_dir());
+            let output = match Ls::get_dir_contents(ctx.get_dir()) {
+                Ok(out) => out,
+                Err(e) => return Err(e.into()),
+            };
             return Ok(CommandOutput::ListText(output));
         }
 
@@ -121,14 +132,16 @@ impl Command for Ls {
             return Err(anyhow!("Only one argument supported for ls"));
         }
 
-        // TODO: fix error handling
         let path = PathBuf::from(args.get(0).unwrap());
 
         if !path.is_dir() {
             return Err(anyhow!("No access or directory do not exist"));
         }
 
-        let output = Ls::get_dir_contents(path);
+        let output = match Ls::get_dir_contents(path) {
+            Ok(out) => out,
+            Err(e) => return Err(e.into()),
+        };
 
         Ok(CommandOutput::ListText(output))
     }

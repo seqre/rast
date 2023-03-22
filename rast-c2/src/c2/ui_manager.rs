@@ -7,6 +7,7 @@ use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use bytes::Bytes;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
+    encoding::{JsonPackager, Packager},
     messages::ui_request::*,
     protocols::{tcp::TcpFactory, *},
     settings,
@@ -134,17 +135,18 @@ impl InnerUiManager {
             // info!("pre lock");
             let mut conn = conn.lock().await;
             // info!("post lock");
-            let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
+            let mut messager = Messager::new(conn.deref_mut());
+            let packager = JsonPackager::default();
 
             loop {
-                if let Some(msg) = frame.next().await {
-                    let msg: UiRequest = serde_json::from_slice(&msg.unwrap()).unwrap();
+                if let Some(msg) = messager.next().await {
+                    let msg: UiRequest = packager.decode(&msg.unwrap().into()).unwrap();
                     info!("Request: {:?}", msg);
                     let response = requester.send(msg).await;
                     info!("Response: {:?}", response);
                     let response = response.unwrap();
-                    let response = serde_json::to_vec(&response).unwrap();
-                    if let Err(e) = frame.send(Bytes::from(response)).await {
+                    let response = packager.encode(&response).unwrap();
+                    if let Err(e) = messager.send(Bytes::from(response)).await {
                         debug!("Failed to send UI response: {:?}", e);
                     };
                 }

@@ -1,12 +1,17 @@
 //! Implementations of [ProtoConnection] for specific protocols.
 
-use std::{fmt::Debug, net::SocketAddr, sync::Arc};
+use std::{
+    fmt::Debug,
+    net::SocketAddr,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use anyhow::anyhow;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures_util::sink::SinkExt;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::Mutex,
@@ -69,39 +74,24 @@ where
             frame: Framed::new(stream, BytesCodec::new()),
         }
     }
-
-    pub async fn send(&mut self, msg: impl Serialize) -> Result<()> {
-        let request = serde_json::to_vec(&msg)?;
-        self.frame.send(Bytes::from(request)).await?;
-        Ok(())
-    }
-
-    // pub async fn recv<'a, M: Deserialize<'a>>(&mut self) -> Result<M> {
-    //    let bytes = self.frame.next().await.unwrap().unwrap();
-    //    Ok(serde_json::from_slice(&bytes.clone)?)
-    //}
 }
 
-pub fn get_rw_frame<S, C>(stream: S, codec: C) -> Framed<S, C>
+impl<S> Deref for Messager<S>
 where
-    S: AsyncWrite + AsyncRead + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin,
 {
-    Framed::new(stream, codec)
+    type Target = Framed<S, BytesCodec>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.frame
+    }
 }
 
-//     let conn = self.connections.get(ip).unwrap();
-//     let mut conn = conn.lock().await;
-//
-//    // TODO: put all of that into struct and do abstractions
-//     let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
-//
-//     let request =
-//     AgentMessage::C2Request(C2Request::ExecCommand(cmd.to_string())); let
-// request     = serde_json::to_vec(&request)?;
-//
-//     frame.send(Bytes::from(request)).await?;
-//     let bytes = frame.next().await.unwrap().unwrap();
-//
-//     let output = serde_json::from_slice(&bytes)?;
-//     let AgentResponse::CommandResponse(output) = output;
-//
+impl<S> DerefMut for Messager<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.frame
+    }
+}

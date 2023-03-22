@@ -21,6 +21,7 @@ tracing-subscriber = { workspace = true }
 futures-util = { workspace = true, features = ["sink"] }
 bytes = { workspace = true }
 async-trait = { workspace = true }
+thiserror = { workspace = true }
 
 config = { version = "0.13" }
 glob = { version = "0.3" }

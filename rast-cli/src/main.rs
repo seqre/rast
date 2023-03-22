@@ -1,12 +1,13 @@
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use rast::{
     protocols::{tcp::TcpFactory, ProtoFactory},
     settings::Settings,
+    RastError,
 };
 use rast_cli::{get_shell, ShellState};
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), RastError> {
     // tracing_subscriber::fmt()
     //    .with_max_level(LevelFilter::INFO)
     //    .init();
@@ -26,7 +27,7 @@ async fn main() -> Result<()> {
         let conf = &conf.tcp.unwrap();
         TcpFactory::new_client(conf).await
     } else {
-        Err(anyhow!("Can't connect to C2 using TCP."))
+        Err(anyhow!("Can't connect to C2 using TCP.").into())
     };
 
     let state = ShellState::new(connection.unwrap());

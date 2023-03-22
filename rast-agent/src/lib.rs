@@ -13,6 +13,7 @@ use rast::{
     messages::c2_agent::{AgentMessage, AgentResponse, C2Request},
     protocols::{tcp::TcpFactory, *},
     settings::Settings,
+    RastError,
 };
 use tokio::{process::Command as SystemCommand, sync::Mutex};
 use tokio_util::codec::BytesCodec;
@@ -36,7 +37,9 @@ impl RastAgent {
         let connection = if let Some(conf) = &settings.server.tcp {
             TcpFactory::new_client(conf).await
         } else {
-            Err(anyhow!("Can't connect to C2 using TCP."))
+            Err(RastError::Network(String::from(
+                "Can't connect to C2 using TCP.",
+            )))
         };
 
         Ok(RastAgent {

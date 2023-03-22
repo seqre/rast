@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 # See: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#concurrency.
 # This will ensure that only one commit will be running tests at a time on each PR.
@@ -16,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  check:
     strategy:
       matrix:
         rust: ["stable", "nightly"]
@@ -55,7 +56,7 @@ jobs:
 
   clippy:
     runs-on: ubuntu-latest
-    needs: ['build']
+    needs: ['check']
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -74,11 +75,11 @@ jobs:
           components: clippy
 
       - name: Run clippy
-        run: cargo clippy -- -Dclippy::all
+        run: cargo clippy -- -Dclippy::all -Wclippy::pedantic
 
   rustfmt:
     runs-on: ubuntu-latest
-    needs: ['build']
+    needs: ['check']
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -101,7 +102,7 @@ jobs:
 
   miri:
     runs-on: ubuntu-latest
-    needs: ['build']
+    needs: ['check']
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -127,7 +128,6 @@ jobs:
 
   machete:
     runs-on: ubuntu-latest
-    needs: ['build']
     steps:
       - name: Checkout source
         uses: actions/checkout@v3

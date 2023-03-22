@@ -7,18 +7,14 @@ use std::{
     sync::Arc,
 };
 
-
 use async_trait::async_trait;
-
-
-
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::Mutex,
 };
 use tokio_util::codec::{BytesCodec, Framed};
 
-use crate::{Result};
+use crate::Result;
 
 pub mod tcp;
 // pub mod websocket;
@@ -27,13 +23,15 @@ pub mod tcp;
 #[async_trait]
 pub trait ProtoConnection: Send + Sync + Unpin + AsyncRead + AsyncWrite {
     /// Gets IP of the remote agent.
-    fn get_ip(&self) -> Result<SocketAddr>;
+    fn local_addr(&self) -> Result<SocketAddr>;
+    fn remote_addr(&self) -> Result<SocketAddr>;
 }
 
 impl Debug for dyn ProtoConnection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProtoConnection")
-            .field("ip", &self.get_ip())
+            .field("local_addr", &self.local_addr())
+            .field("remote_addr", &self.remote_addr())
             .finish()
     }
 }

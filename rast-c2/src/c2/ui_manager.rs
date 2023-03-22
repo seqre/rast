@@ -4,7 +4,6 @@ use std::{fmt::Debug, net::SocketAddr, sync::Arc, vec};
 
 use anyhow::Result;
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
-
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
@@ -19,7 +18,6 @@ use tokio::{
     },
     task::JoinHandle,
 };
-
 use tracing::{debug, info};
 
 /// Manager of the UI connections.
@@ -128,7 +126,7 @@ impl InnerUiManager {
     }
 
     async fn add_connection(&mut self, conn: Arc<Mutex<dyn ProtoConnection>>) -> Result<()> {
-        let ip = conn.lock().await.get_ip()?;
+        let ip = conn.lock().await.remote_addr()?;
         let requester = self.requester.clone();
         // info!("pre task");
         let task = tokio::spawn(async move {

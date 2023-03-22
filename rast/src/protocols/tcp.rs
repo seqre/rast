@@ -11,7 +11,9 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::protocols::{Arc, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result, SocketAddr, async_trait};
+use crate::protocols::{
+    async_trait, Arc, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result, SocketAddr,
+};
 
 /// Creates [`ProtoServer`] and [`ProtoConnection`] for TCP communication.
 pub struct TcpFactory {}
@@ -40,7 +42,12 @@ impl TcpConnection {
 
 #[async_trait]
 impl ProtoConnection for TcpConnection {
-    fn get_ip(&self) -> Result<SocketAddr> {
+    fn local_addr(&self) -> Result<SocketAddr> {
+        let ip = self.stream.local_addr()?;
+        Ok(ip)
+    }
+
+    fn remote_addr(&self) -> Result<SocketAddr> {
         let ip = self.stream.peer_addr()?;
         Ok(ip)
     }

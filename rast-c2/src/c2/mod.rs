@@ -7,6 +7,7 @@ use bidirectional_channel::ReceivedRequest;
 use bytes::Bytes;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
+    encoding::{JsonPackager, Packager},
     messages::{
         c2_agent::{AgentMessage, AgentResponse, C2Request},
         ui_request::*,
@@ -122,6 +123,7 @@ impl RastC2 {
 
     async fn handle_ui_request(&self, req: ReceivedRequest<UiRequest, UiResponse>) -> Result<()> {
         info!("{:?}", req.as_ref());
+        let packager = JsonPackager::default();
         let response = match req.as_ref() {
             UiRequest::Ping => UiResponse::Pong,
             UiRequest::GetIps => {
@@ -138,15 +140,15 @@ impl RastC2 {
                 let mut conn = conn.lock().await;
 
                 // TODO: put all of that into struct and do abstractions
-                let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
+                let mut messager = Messager::new(conn.deref_mut());
 
                 let request = AgentMessage::C2Request(C2Request::ExecCommand(cmd.to_string()));
-                let request = serde_json::to_vec(&request)?;
+                let request = packager.encode(&request)?;
 
-                let _result = frame.send(Bytes::from(request)).await;
-                let bytes = frame.next().await.unwrap().unwrap();
+                let _result = messager.send(Bytes::from(request)).await;
+                let bytes = messager.next().await.unwrap().unwrap();
 
-                let output = serde_json::from_slice(bytes.as_ref());
+                let output = packager.decode(&bytes.into());
                 let output = output?;
                 let AgentMessage::AgentResponse(AgentResponse::CommandResponse(output)) = output else { todo!()};
 

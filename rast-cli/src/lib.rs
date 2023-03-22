@@ -13,8 +13,9 @@ use std::{
 use bytes::Bytes;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
+    encoding::{JsonPackager, Packager},
     messages::ui_request::{UiRequest, UiResponse},
-    protocols::{get_rw_frame, ProtoConnection},
+    protocols::{Messager, ProtoConnection},
 };
 use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
 use tokio::sync::Mutex;
@@ -97,16 +98,16 @@ pub fn get_shell(
 async fn ping(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
-    // TODO: put all of that into struct and do abstractions
-    let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
+    let mut messager = Messager::new(conn.deref_mut());
+    let packager = JsonPackager::default();
 
     let request = UiRequest::Ping;
-    let request = serde_json::to_vec(&request)?;
+    let request = packager.encode(&request)?;
 
-    frame.send(Bytes::from(request)).await?;
-    let bytes = frame.next().await.unwrap().unwrap();
+    messager.send(Bytes::from(request)).await?;
+    let bytes = messager.next().await.unwrap().unwrap();
 
-    let output: UiResponse = serde_json::from_slice(&bytes)?;
+    let output: UiResponse = packager.decode(&bytes.into())?;
 
     if output == UiResponse::Pong {
         println!("pong");
@@ -120,15 +121,16 @@ async fn get_targets(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
-    let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
+    let mut messager = Messager::new(conn.deref_mut());
+    let packager = JsonPackager::default();
 
     let request = UiRequest::GetIps;
-    let request = serde_json::to_vec(&request)?;
+    let request = packager.encode(&request)?;
 
-    frame.send(Bytes::from(request)).await?;
-    let bytes = frame.next().await.unwrap().unwrap();
+    messager.send(Bytes::from(request)).await?;
+    let bytes = messager.next().await.unwrap().unwrap();
 
-    let output: UiResponse = serde_json::from_slice(&bytes)?;
+    let output: UiResponse = packager.decode(&bytes.into())?;
 
     if let UiResponse::GetIps(ips) = output {
         state.targets = ips;
@@ -162,19 +164,20 @@ async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
-    let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
+    let mut messager = Messager::new(conn.deref_mut());
+    let packager = JsonPackager::default();
     let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
 
     let request = UiRequest::Command(
         SocketAddr::new(IpAddr::from_str(ip).unwrap(), u16::from_str(port).unwrap()),
         command,
     );
-    let request = serde_json::to_vec(&request)?;
+    let request = packager.encode(&request)?;
 
-    frame.send(Bytes::from(request)).await?;
-    let bytes = frame.next().await.unwrap().unwrap();
+    messager.send(Bytes::from(request)).await?;
+    let bytes = messager.next().await.unwrap().unwrap();
 
-    let output: UiResponse = serde_json::from_slice(&bytes)?;
+    let output: UiResponse = packager.decode(&bytes.into())?;
 
     if let UiResponse::Command(output) = output {
         println!("{output}");

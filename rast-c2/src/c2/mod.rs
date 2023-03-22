@@ -4,7 +4,6 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc, vec};
 
 use anyhow::{Error, Result};
 use bidirectional_channel::ReceivedRequest;
-
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
@@ -22,7 +21,6 @@ use tokio::{
     },
     task::JoinHandle,
 };
-
 use tracing::{debug, info};
 
 use crate::c2::ui_manager::UiManager;
@@ -116,7 +114,7 @@ impl RastC2 {
 
     #[tracing::instrument]
     async fn add_connection(&mut self, conn: Arc<Mutex<dyn ProtoConnection>>) -> Result<()> {
-        let ip = conn.lock().await.get_ip()?;
+        let ip = conn.lock().await.remote_addr()?;
         self.connections.insert(ip, conn);
         Ok(())
     }

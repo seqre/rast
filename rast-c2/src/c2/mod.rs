@@ -1,18 +1,18 @@
 //! C2 implementation.
 
-use std::{collections::HashMap, net::SocketAddr, ops::DerefMut, sync::Arc, vec};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, vec};
 
 use anyhow::{Error, Result};
 use bidirectional_channel::ReceivedRequest;
-use bytes::Bytes;
+
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::{
         c2_agent::{AgentMessage, AgentResponse, C2Request},
-        ui_request::*,
+        ui_request::{IpData, UiRequest, UiResponse},
     },
-    protocols::{tcp::TcpFactory, *},
+    protocols::{tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer},
     settings::Settings,
 };
 use tokio::{
@@ -22,7 +22,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tokio_util::codec::BytesCodec;
+
 use tracing::{debug, info};
 
 use crate::c2::ui_manager::UiManager;
@@ -140,12 +140,12 @@ impl RastC2 {
                 let mut conn = conn.lock().await;
 
                 // TODO: put all of that into struct and do abstractions
-                let mut messager = Messager::new(conn.deref_mut());
+                let mut messager = Messager::new(&mut *conn);
 
                 let request = AgentMessage::C2Request(C2Request::ExecCommand(cmd.to_string()));
                 let request = packager.encode(&request)?;
 
-                let _result = messager.send(Bytes::from(request)).await;
+                let _result = messager.send(request).await;
                 let bytes = messager.next().await.unwrap().unwrap();
 
                 let output = packager.decode(&bytes.into());

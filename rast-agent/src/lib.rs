@@ -1,23 +1,22 @@
 //! The agent part of the Rast project.
 
 use std::{
-    ops::DerefMut,
     sync::{Arc, RwLock},
 };
 
-use anyhow::{anyhow, Result};
-use bytes::Bytes;
+use anyhow::{Result};
+
 use commands::Commands;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::c2_agent::{AgentMessage, AgentResponse, C2Request},
-    protocols::{tcp::TcpFactory, *},
+    protocols::{tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
     settings::Settings,
     RastError,
 };
 use tokio::{process::Command as SystemCommand, sync::Mutex};
-use tokio_util::codec::BytesCodec;
+
 use tracing::{debug, info};
 
 use crate::context::Context;
@@ -56,7 +55,7 @@ impl RastAgent {
         info!("RastAgent running");
 
         let mut conn = self.connection.lock().await;
-        let mut messager = Messager::new(conn.deref_mut());
+        let mut messager = Messager::new(&mut *conn);
         let packager = JsonPackager::default();
 
         loop {

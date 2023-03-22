@@ -68,9 +68,9 @@ impl Commands {
 
     fn get_commands() -> HashMap<String, Box<dyn Command>> {
         let commands: Vec<Box<dyn Command>> = vec![
-            Box::new(Cd::new()),
-            Box::new(Ls::new()),
-            Box::new(Pwd::new()),
+            Box::new(Cd::default()),
+            Box::new(Ls::default()),
+            Box::new(Pwd::default()),
         ];
 
         commands

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rast::settings::*;
+use rast::settings::Settings;
 use rast_agent::RastAgent;
 use tracing::info;
 use tracing_subscriber::filter::LevelFilter;

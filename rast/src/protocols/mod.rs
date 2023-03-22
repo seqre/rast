@@ -1,4 +1,4 @@
-//! Implementations of [ProtoConnection] for specific protocols.
+//! Implementations of [`ProtoConnection`] for specific protocols.
 
 use std::{
     fmt::Debug,
@@ -7,18 +7,18 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::anyhow;
+
 use async_trait::async_trait;
-use bytes::Bytes;
-use futures_util::sink::SinkExt;
-use serde::{Deserialize, Serialize};
+
+
+
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::Mutex,
 };
 use tokio_util::codec::{BytesCodec, Framed};
 
-use crate::{RastError, Result};
+use crate::{Result};
 
 pub mod tcp;
 // pub mod websocket;

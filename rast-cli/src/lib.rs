@@ -4,13 +4,12 @@ use std::{
     error::Error,
     fmt::Display,
     net::{IpAddr, SocketAddr},
-    ops::DerefMut,
     str::FromStr,
     sync::Arc,
     vec,
 };
 
-use bytes::Bytes;
+
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
@@ -19,7 +18,7 @@ use rast::{
 };
 use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
 use tokio::sync::Mutex;
-use tokio_util::codec::BytesCodec;
+
 
 type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -94,17 +93,17 @@ pub fn get_shell(
 
 // async fn send_request(request: UiRequest) -> Result<UiResponse> {}
 
-/// Sends [UiRequest::Ping] to the C2 server to check connectivity.
+/// Sends [`UiRequest::Ping`] to the C2 server to check connectivity.
 async fn ping(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
-    let mut messager = Messager::new(conn.deref_mut());
+    let mut messager = Messager::new(&mut *conn);
     let packager = JsonPackager::default();
 
     let request = UiRequest::Ping;
     let request = packager.encode(&request)?;
 
-    messager.send(Bytes::from(request)).await?;
+    messager.send(request).await?;
     let bytes = messager.next().await.unwrap().unwrap();
 
     let output: UiResponse = packager.decode(&bytes.into())?;
@@ -121,13 +120,13 @@ async fn get_targets(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
-    let mut messager = Messager::new(conn.deref_mut());
+    let mut messager = Messager::new(&mut *conn);
     let packager = JsonPackager::default();
 
     let request = UiRequest::GetIps;
     let request = packager.encode(&request)?;
 
-    messager.send(Bytes::from(request)).await?;
+    messager.send(request).await?;
     let bytes = messager.next().await.unwrap().unwrap();
 
     let output: UiResponse = packager.decode(&bytes.into())?;
@@ -164,7 +163,7 @@ async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
-    let mut messager = Messager::new(conn.deref_mut());
+    let mut messager = Messager::new(&mut *conn);
     let packager = JsonPackager::default();
     let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
 
@@ -174,7 +173,7 @@ async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()
     );
     let request = packager.encode(&request)?;
 
-    messager.send(Bytes::from(request)).await?;
+    messager.send(request).await?;
     let bytes = messager.next().await.unwrap().unwrap();
 
     let output: UiResponse = packager.decode(&bytes.into())?;

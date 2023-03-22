@@ -27,17 +27,7 @@ pub struct Ls;
 #[derive(Default)]
 pub struct Pwd;
 
-impl Cd {
-    pub fn new() -> Self {
-        Cd {}
-    }
-}
-
 impl Ls {
-    pub fn new() -> Self {
-        Ls {}
-    }
-
     fn get_dir_contents(path: PathBuf) -> Result<Vec<String>> {
         let dir_entries = match path.read_dir() {
             Ok(entries) => entries,
@@ -53,12 +43,6 @@ impl Ls {
             .collect();
 
         Ok(out)
-    }
-}
-
-impl Pwd {
-    pub fn new() -> Self {
-        Pwd {}
     }
 }
 
@@ -123,7 +107,7 @@ impl Command for Ls {
             let ctx = ctx.read().unwrap();
             let output = match Ls::get_dir_contents(ctx.get_dir()) {
                 Ok(out) => out,
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(e),
             };
             return Ok(CommandOutput::ListText(output));
         }
@@ -140,7 +124,7 @@ impl Command for Ls {
 
         let output = match Ls::get_dir_contents(path) {
             Ok(out) => out,
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(e),
         };
 
         Ok(CommandOutput::ListText(output))

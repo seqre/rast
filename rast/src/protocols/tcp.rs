@@ -1,4 +1,4 @@
-//! TCP implementation of [ProtoConnection].
+//! TCP implementation of [`ProtoConnection`].
 use std::{
     net::IpAddr,
     pin::{pin, Pin},
@@ -11,9 +11,9 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::protocols::*;
+use crate::protocols::{Arc, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result, SocketAddr, async_trait};
 
-/// Creates [ProtoServer] and [ProtoConnection] for TCP communication.
+/// Creates [`ProtoServer`] and [`ProtoConnection`] for TCP communication.
 pub struct TcpFactory {}
 
 struct TcpServer {

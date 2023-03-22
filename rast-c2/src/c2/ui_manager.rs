@@ -1,15 +1,15 @@
 //! UI incoming connections handler.
 
-use std::{fmt::Debug, net::SocketAddr, ops::DerefMut, sync::Arc, vec};
+use std::{fmt::Debug, net::SocketAddr, sync::Arc, vec};
 
 use anyhow::Result;
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
-use bytes::Bytes;
+
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
-    messages::ui_request::*,
-    protocols::{tcp::TcpFactory, *},
+    messages::ui_request::{UiRequest, UiResponse},
+    protocols::{tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer},
     settings,
 };
 use tokio::{
@@ -19,7 +19,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tokio_util::codec::BytesCodec;
+
 use tracing::{debug, info};
 
 /// Manager of the UI connections.
@@ -135,7 +135,7 @@ impl InnerUiManager {
             // info!("pre lock");
             let mut conn = conn.lock().await;
             // info!("post lock");
-            let mut messager = Messager::new(conn.deref_mut());
+            let mut messager = Messager::new(&mut *conn);
             let packager = JsonPackager::default();
 
             loop {
@@ -146,7 +146,7 @@ impl InnerUiManager {
                     info!("Response: {:?}", response);
                     let response = response.unwrap();
                     let response = packager.encode(&response).unwrap();
-                    if let Err(e) = messager.send(Bytes::from(response)).await {
+                    if let Err(e) = messager.send(response).await {
                         debug!("Failed to send UI response: {:?}", e);
                     };
                 }

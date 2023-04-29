@@ -6,34 +6,35 @@ use config::{Config, ConfigError, Environment, File};
 use glob::glob;
 use serde::Deserialize;
 
-use crate::protocols::tcp::TcpConf;
+use crate::protocols::{quic::QuicConf, tcp::TcpConf};
 
 //#[derive(Debug, Deserialize)]
 //#[allow(unused)]
 // pub struct Dummy {}
 
 /// UI-related configuration values.
-#[derive(Debug, Deserialize, Copy, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct Ui {
     pub tcp: Option<TcpConf>,
 }
 
 /// C2 server-related configuration values.
-#[derive(Debug, Deserialize, Copy, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct Server {
-    pub tcp: Option<TcpConf>,
     pub ui: Option<Ui>,
+    pub tcp: Option<TcpConf>,
+    pub quic: Option<QuicConf>,
 }
 
 /// Agent-related configuration values.
-#[derive(Debug, Deserialize, Copy, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct Agent {}
 
 /// General configuration values.
-#[derive(Debug, Deserialize, Copy, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct Settings {
     pub server: Server,

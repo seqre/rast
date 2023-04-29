@@ -27,3 +27,6 @@ config = { version = "0.13" }
 glob = { version = "0.3" }
 futures-io = { version = "0.3" }
 pin-project = "1.0"
+quinn = { version = "0.9" }
+rustls = { version = "0.20.7" }
+rcgen = { version = "0.10" }

@@ -16,6 +16,7 @@ use tokio_util::codec::{BytesCodec, Framed};
 
 use crate::Result;
 
+pub mod quic;
 pub mod tcp;
 // pub mod websocket;
 

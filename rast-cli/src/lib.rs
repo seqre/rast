@@ -79,9 +79,25 @@ pub fn get_shell(
     );
 
     shell.commands.insert(
+        "exec_shell",
+        Command::new_async(
+            "run shell command on target".into(),
+            async_fn!(ShellState, exec_shell),
+        ),
+    );
+
+    shell.commands.insert(
+        "get_commands",
+        Command::new_async(
+            "get built-in commands available on the agent".into(),
+            async_fn!(ShellState, get_commands),
+        ),
+    );
+
+    shell.commands.insert(
         "exec_command",
         Command::new_async(
-            "run command on target".into(),
+            "run built-in command on the agent".into(),
             async_fn!(ShellState, exec_command),
         ),
     );
@@ -141,7 +157,7 @@ async fn get_targets(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()
 }
 
 /// Executes command on the specified agent.
-async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
+async fn exec_shell(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
         return Ok(());
@@ -165,19 +181,101 @@ async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()
     let packager = JsonPackager::default();
     let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
 
-    let request = UiRequest::Command(
-        SocketAddr::new(IpAddr::from_str(ip).unwrap(), u16::from_str(port).unwrap()),
+    let request = UiRequest::ShellRequest(
+        SocketAddr::new(IpAddr::from_str(ip).unwrap(), u16::from_str(port)?),
         command,
     );
     let request = packager.encode(&request)?;
 
     messager.send(request).await?;
-    let bytes = messager.next().await.unwrap().unwrap();
+    let bytes = messager.next().await.unwrap()?;
 
     let output: UiResponse = packager.decode(&bytes.into())?;
 
-    if let UiResponse::Command(output) = output {
+    if let UiResponse::ShellOutput(output) = output {
         println!("{output}");
+    }
+
+    Ok(())
+}
+
+/// Executes command on the specified agent.
+async fn get_commands(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
+    if state.target.is_none() {
+        println!("No target is selected");
+        return Ok(());
+    }
+
+    // if args.len() != 1 {
+    //     println!("Incorrect argument number");
+    //     return Ok(());
+    // }
+
+    let mut conn = state.conn.lock().await;
+
+    // TODO: put all of that into struct and do abstractions
+    let mut messager = Messager::new(&mut *conn);
+    let packager = JsonPackager::default();
+    let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
+
+    let request = UiRequest::GetCommands(SocketAddr::new(
+        IpAddr::from_str(ip).unwrap(),
+        u16::from_str(port)?,
+    ));
+    let request = packager.encode(&request)?;
+
+    messager.send(request).await?;
+    let bytes = messager.next().await.unwrap()?;
+
+    let output: UiResponse = packager.decode(&bytes.into())?;
+
+    if let UiResponse::Commands(output) = output {
+        for (cmd, help) in output.iter() {
+            println!("[{cmd}]\t {help}");
+        }
+    }
+
+    Ok(())
+}
+
+/// Executes command on the specified agent.
+async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
+    if state.target.is_none() {
+        println!("No target is selected");
+        return Ok(());
+    }
+
+    if args.len() < 2 {
+        println!("Incorrect argument number");
+        return Ok(());
+    }
+
+    let command = args[1].clone();
+    let args = Vec::from(args.split_at(2).1);
+
+    let mut conn = state.conn.lock().await;
+
+    // TODO: put all of that into struct and do abstractions
+    let mut messager = Messager::new(&mut *conn);
+    let packager = JsonPackager::default();
+    let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
+
+    let request = UiRequest::ExecCommand(
+        SocketAddr::new(IpAddr::from_str(ip).unwrap(), u16::from_str(port)?),
+        command,
+        args,
+    );
+    let request = packager.encode(&request)?;
+
+    messager.send(request).await?;
+    let bytes = messager.next().await.unwrap()?;
+
+    let output: UiResponse = packager.decode(&bytes.into())?;
+
+    if let UiResponse::CommandOutput(output) = output {
+        println!("{output}");
+    } else {
+        println!("Err");
     }
 
     Ok(())

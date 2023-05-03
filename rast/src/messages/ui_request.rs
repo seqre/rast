@@ -14,7 +14,9 @@ pub enum UiRequest {
     Ping,
     GetIps,
     GetIpData(Ip),
-    Command(Ip, String),
+    ShellRequest(Ip, String),
+    GetCommands(Ip),
+    ExecCommand(Ip, String, Vec<String>),
 }
 
 /// Task response from C2 to UI.
@@ -23,7 +25,9 @@ pub enum UiResponse {
     Pong,
     GetIps(Vec<String>),
     GetIpData(IpData),
-    Command(String),
+    ShellOutput(String),
+    Commands(Vec<(String, String)>),
+    CommandOutput(String),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

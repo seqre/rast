@@ -78,6 +78,7 @@ impl Commands {
             Box::new(Cd::default()),
             Box::new(Ls::default()),
             Box::new(Pwd::default()),
+            Box::new(Whoami::default()),
         ];
 
         commands

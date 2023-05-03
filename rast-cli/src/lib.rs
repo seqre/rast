@@ -2,7 +2,7 @@
 
 use std::{
     error::Error,
-    fmt::Display,
+    fmt::{Display, Formatter},
     net::{IpAddr, SocketAddr},
     str::FromStr,
     sync::Arc,
@@ -10,15 +10,17 @@ use std::{
 };
 
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use shellfish::{async_fn, Command, handler::DefaultAsyncHandler, Shell};
+use tokio::sync::Mutex;
+
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::ui_request::{UiRequest, UiResponse},
     protocols::{Messager, ProtoConnection},
 };
-use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
-use tokio::sync::Mutex;
 
 type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
+type State = ShellState;
 
 /// Local state of working connections.
 #[derive(Debug)]
@@ -37,7 +39,6 @@ impl ShellState {
         }
     }
 }
-
 impl Display for ShellState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut prompt = String::from("[rast]");
@@ -51,21 +52,19 @@ impl Display for ShellState {
 }
 
 /// Creates shell.
-pub fn get_shell(
-    state: ShellState,
-) -> Shell<'static, ShellState, impl Display, DefaultAsyncHandler> {
+pub fn get_shell(state: State) -> Shell<'static, State, impl Display, DefaultAsyncHandler> {
     let mut shell = Shell::new_async(state, "[rast]> ");
 
     shell.commands.insert(
         "ping",
-        Command::new_async("pings C2 server".into(), async_fn!(ShellState, ping)),
+        Command::new_async("pings C2 server".into(), async_fn!(State, ping)),
     );
 
     shell.commands.insert(
         "get_targets",
         Command::new_async(
             "updates and prints target list".into(),
-            async_fn!(ShellState, get_targets),
+            async_fn!(State, get_targets),
         ),
     );
 
@@ -82,7 +81,7 @@ pub fn get_shell(
         "exec_shell",
         Command::new_async(
             "run shell command on target".into(),
-            async_fn!(ShellState, exec_shell),
+            async_fn!(State, exec_shell),
         ),
     );
 
@@ -90,7 +89,7 @@ pub fn get_shell(
         "get_commands",
         Command::new_async(
             "get built-in commands available on the agent".into(),
-            async_fn!(ShellState, get_commands),
+            async_fn!(State, get_commands),
         ),
     );
 
@@ -98,7 +97,7 @@ pub fn get_shell(
         "exec_command",
         Command::new_async(
             "run built-in command on the agent".into(),
-            async_fn!(ShellState, exec_command),
+            async_fn!(State, exec_command),
         ),
     );
 
@@ -108,7 +107,7 @@ pub fn get_shell(
 // async fn send_request(request: UiRequest) -> Result<UiResponse> {}
 
 /// Sends [`UiRequest::Ping`] to the C2 server to check connectivity.
-async fn ping(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
+async fn ping(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
     let mut messager = Messager::new(&mut *conn);
@@ -130,7 +129,7 @@ async fn ping(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
 }
 
 /// Gets all agents that C2 server is connected to.
-async fn get_targets(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
+async fn get_targets(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
@@ -157,7 +156,7 @@ async fn get_targets(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()
 }
 
 /// Executes command on the specified agent.
-async fn exec_shell(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
+async fn exec_shell(state: &mut State, args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
         return Ok(());
@@ -173,6 +172,7 @@ async fn exec_shell(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> 
         command.push_str(arg);
         command.push(' ');
     }
+    command.pop();
 
     let mut conn = state.conn.lock().await;
 
@@ -200,7 +200,7 @@ async fn exec_shell(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> 
 }
 
 /// Executes command on the specified agent.
-async fn get_commands(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
+async fn get_commands(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
         return Ok(());
@@ -239,7 +239,7 @@ async fn get_commands(state: &mut ShellState, _args: Vec<String>) -> CmdResult<(
 }
 
 /// Executes command on the specified agent.
-async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
+async fn exec_command(state: &mut State, args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
         return Ok(());
@@ -282,7 +282,7 @@ async fn exec_command(state: &mut ShellState, args: Vec<String>) -> CmdResult<()
 }
 
 /// Locally set target to specified agent.
-fn set_target(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
+fn set_target(state: &mut State, args: Vec<String>) -> CmdResult<()> {
     if args.len() != 2 {
         println!("Incorrect argument number");
         return Ok(());
@@ -298,7 +298,7 @@ fn set_target(state: &mut ShellState, args: Vec<String>) -> CmdResult<()> {
     Ok(())
 }
 
-fn show_state(state: &mut ShellState, _args: Vec<String>) -> CmdResult<()> {
+fn show_state(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
     println!("{state:#?}");
     Ok(())
 }

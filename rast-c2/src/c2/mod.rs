@@ -5,18 +5,6 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc, vec};
 use anyhow::{bail, Error, Result};
 use bidirectional_channel::ReceivedRequest;
 use futures_util::{sink::SinkExt, stream::StreamExt};
-use rast::{
-    encoding::{JsonPackager, Packager},
-    messages::{
-        c2_agent::{AgentMessage, AgentResponse, C2Request},
-        ui_request::{IpData, UiRequest, UiResponse},
-    },
-    protocols::{
-        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
-    },
-    settings::{Connection, Settings},
-    RastError,
-};
 use tokio::{
     sync::{
         mpsc::{unbounded_channel, UnboundedReceiver},
@@ -24,7 +12,20 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
+
+use rast::{
+    encoding::{JsonPackager, Packager},
+    messages::{
+        c2_agent::{AgentMessage, AgentResponse, C2Request},
+        ui_request::{IpData, UiRequest, UiResponse},
+    },
+    protocols::{
+        Messager, ProtoConnection, ProtoFactory, ProtoServer, quic::QuicFactory, tcp::TcpFactory,
+    },
+    RastError,
+    settings::{Connection, Settings},
+};
 
 use crate::c2::ui_manager::UiManager;
 
@@ -65,7 +66,7 @@ impl RastC2 {
             };
 
             if let Ok(server) = server {
-                debug!("Creating agent listener: {server:?}");
+                info!("Creating agent listener at: {server:?}");
                 let cloned = ctx.clone();
                 let task = tokio::spawn(async move {
                     loop {
@@ -98,8 +99,6 @@ impl RastC2 {
             ui,
         };
 
-        info!("RastC2 instance created");
-
         Ok(rastc2)
     }
 
@@ -108,13 +107,17 @@ impl RastC2 {
         info!("RastC2 instance running");
         loop {
             while let Ok(conn) = self.connections_rx.try_recv() {
-                info!("Received agent connection");
+                info!(
+                    "Received agent connection from: {:?}",
+                    conn.lock().await.remote_addr()
+                );
                 self.add_connection(conn).await?;
+                debug!("Added agent connection");
             }
 
             if let Some(ui) = &self.ui {
                 while let Ok(req) = ui.try_recv_request() {
-                    info!("Received UI request");
+                    trace!("Received UI request");
                     if let Err(e) = self.handle_ui_request(req).await {
                         debug!("Failed to handle UI request: {:?}", e);
                     };
@@ -123,7 +126,7 @@ impl RastC2 {
         }
     }
 
-    #[tracing::instrument]
+    // #[tracing::instrument]
     async fn add_connection(&mut self, conn: Arc<Mutex<dyn ProtoConnection>>) -> Result<()> {
         let ip = conn.lock().await.remote_addr()?;
         self.connections.insert(ip, conn);
@@ -131,7 +134,7 @@ impl RastC2 {
     }
 
     async fn handle_ui_request(&self, req: ReceivedRequest<UiRequest, UiResponse>) -> Result<()> {
-        info!("{:?}", req.as_ref());
+        trace!("{:?}", req.as_ref());
         let packager = JsonPackager::default();
         let response = match req.as_ref() {
             UiRequest::Ping => UiResponse::Pong,
@@ -212,9 +215,9 @@ impl RastC2 {
                 UiResponse::CommandOutput(output)
             },
         };
-        info!("{:?}", response);
+        trace!("{:?}", response);
         let result = req.respond(response);
-        info!("{:?}", result);
+        trace!("{:?}", result);
         Ok(())
     }
 }

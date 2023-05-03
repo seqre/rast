@@ -30,22 +30,6 @@ pub struct UiManager {
     requests: Responder<ReceivedRequest<UiRequest, UiResponse>>,
 }
 
-struct InnerUiManager {
-    requester: Arc<Requester<UiRequest, UiResponse>>,
-    servers: Vec<JoinHandle<()>>,
-    connections: Vec<(SocketAddr, JoinHandle<()>)>,
-    connections_rx: UnboundedReceiver<Arc<Mutex<dyn ProtoConnection>>>,
-}
-
-impl Debug for InnerUiManager {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InnerUiManager")
-            .field("servers", &self.servers)
-            .field("connections", &self.connections)
-            .finish()
-    }
-}
-
 impl UiManager {
     /// Creates new instance using provided [UI settings](settings::Ui)
     pub async fn with_settings(conf: &settings::Ui) -> Result<Self> {
@@ -78,6 +62,22 @@ impl UiManager {
             Ok(req) => Ok(req),
             Err(e) => Err(e.into()),
         }
+    }
+}
+
+struct InnerUiManager {
+    requester: Arc<Requester<UiRequest, UiResponse>>,
+    servers: Vec<JoinHandle<()>>,
+    connections: Vec<(SocketAddr, JoinHandle<()>)>,
+    connections_rx: UnboundedReceiver<Arc<Mutex<dyn ProtoConnection>>>,
+}
+
+impl Debug for InnerUiManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InnerUiManager")
+            .field("servers", &self.servers)
+            .field("connections", &self.connections)
+            .finish()
     }
 }
 

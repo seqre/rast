@@ -24,3 +24,4 @@ bytes = { workspace = true }
 async-trait = { workspace = true }
 
 rust-embed = { version = "6.4" }
+whoami = { version = "1.4" }

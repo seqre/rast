@@ -30,3 +30,8 @@ pin-project = "1.0"
 quinn = { version = "0.9" }
 rustls = { version = "0.20.7" }
 rcgen = { version = "0.10" }
+include-flate = { version = "0.2" }
+
+[features]
+default = []
+embed-cert = []

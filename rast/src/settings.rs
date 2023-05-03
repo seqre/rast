@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use crate::protocols::{quic::QuicConf, tcp::TcpConf};
 
-//#[derive(Debug, Deserialize)]
+//#[derive(Debug, Deserialize, Clone)]
 //#[allow(unused)]
 // pub struct Dummy {}
 
@@ -19,26 +19,35 @@ pub struct Ui {
     pub tcp: Option<TcpConf>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+#[allow(unused)]
+#[serde(rename_all = "lowercase")]
+pub enum Connection {
+    Tcp(TcpConf),
+    Quic(QuicConf),
+}
+
 /// C2 server-related configuration values.
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct Server {
-    pub ui: Option<Ui>,
-    pub tcp: Option<TcpConf>,
-    pub quic: Option<QuicConf>,
+    pub ui_listeners: Vec<Connection>,
+    pub agent_listeners: Vec<Connection>,
 }
 
 /// Agent-related configuration values.
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
-pub struct Agent {}
+pub struct Agent {
+    pub connections: Vec<Connection>,
+}
 
 /// General configuration values.
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct Settings {
     pub server: Server,
-    // pub agent: Agent,
+    pub agent: Agent,
 }
 
 impl Settings {

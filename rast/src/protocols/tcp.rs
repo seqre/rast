@@ -10,9 +10,10 @@ use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{TcpListener, TcpStream},
 };
+use tracing::debug;
 
 use crate::protocols::{
-    async_trait, Arc, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result, SocketAddr,
+    Arc, async_trait, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result, SocketAddr,
 };
 
 /// Creates [`ProtoServer`] and [`ProtoConnection`] for TCP communication.
@@ -85,7 +86,10 @@ impl ProtoFactory for TcpFactory {
 impl ProtoServer for TcpServer {
     async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
         match self.listener.accept().await {
-            Ok((stream, _address)) => Ok(Arc::new(Mutex::new(TcpConnection::new(stream)))),
+            Ok((stream, address)) => {
+                debug!("Got connection from {:?}", address);
+                Ok(Arc::new(Mutex::new(TcpConnection::new(stream))))
+            },
             Err(e) => Err(e.into()),
         }
     }

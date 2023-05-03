@@ -1,7 +1,4 @@
-use std::{
-    ffi::OsString,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
 
@@ -34,8 +31,8 @@ impl Command for Whoami {
 
     async fn execute(
         &self,
-        ctx: Arc<RwLock<Context>>,
-        args: Vec<String>,
+        _ctx: Arc<RwLock<Context>>,
+        _args: Vec<String>,
     ) -> anyhow::Result<CommandOutput> {
         let output = format!("{}@{}", whoami::username(), whoami::hostname());
         Ok(CommandOutput::Text(output))

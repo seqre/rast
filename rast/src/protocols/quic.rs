@@ -153,7 +153,12 @@ impl ProtoServer for QuicServer {
     async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
         if let Some(conn) = self.endpoint.accept().await {
             let conn = conn.await?;
-            let (send, recv) = conn.accept_bi().await?;
+            debug!("Got connection from {:?}", conn.remote_address());
+            let (send, mut recv) = conn.accept_bi().await?;
+
+            trace!("Receiving single byte to open connection");
+            let mut buf: [u8; 1] = [0];
+            let _out = recv.read(&mut buf).await;
 
             Ok(Arc::new(Mutex::new(QuicConnection::new(conn, recv, send))))
         } else {

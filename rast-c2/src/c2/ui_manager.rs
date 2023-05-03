@@ -1,19 +1,10 @@
 //! UI incoming connections handler.
 
-use std::{fmt::Debug, net::SocketAddr, sync::Arc, vec};
+use std::{fmt::Debug, net::SocketAddr, sync::Arc, time::Duration, vec};
 
 use anyhow::{bail, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use futures_util::{sink::SinkExt, stream::StreamExt};
-use rast::{
-    encoding::{JsonPackager, Packager},
-    messages::ui_request::{UiRequest, UiResponse},
-    protocols::{
-        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
-    },
-    settings::{self, Connection, Settings},
-    RastError,
-};
 use tokio::{
     sync::{
         mpsc::{unbounded_channel, UnboundedReceiver},
@@ -21,7 +12,17 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
+
+use rast::{
+    encoding::{JsonPackager, Packager},
+    messages::ui_request::{UiRequest, UiResponse},
+    protocols::{
+        Messager, ProtoConnection, ProtoFactory, ProtoServer, quic::QuicFactory, tcp::TcpFactory,
+    },
+    RastError,
+    settings::{self, Connection, Settings},
+};
 
 /// Manager of the UI connections.
 #[derive(Debug)]
@@ -32,12 +33,12 @@ pub struct UiManager {
 
 impl UiManager {
     /// Creates new instance using provided [UI settings](settings::Ui)
-    pub async fn with_settings(conf: &settings::Ui) -> Result<Self> {
+    pub async fn with_settings(settings: &Settings) -> Result<Self> {
         let (tx, rx) = bounded(100);
-        let mut inner = InnerUiManager::with_settings(conf, tx).await?;
+        let mut inner = InnerUiManager::with_settings(settings, tx).await?;
         let inner = tokio::spawn(async move {
             if let Err(e) = inner.run().await {
-                debug!("Failed to start InnerUiManager: {:?}", e);
+                debug!("InnerUiManager exited with error: {:?}", e);
             };
         });
 
@@ -83,7 +84,7 @@ impl Debug for InnerUiManager {
 
 impl InnerUiManager {
     async fn with_settings(
-        conf: &settings::Ui,
+        settings: &Settings,
         requester: Requester<UiRequest, UiResponse>,
     ) -> Result<Self> {
         let (tx, rx) = unbounded_channel();
@@ -102,9 +103,12 @@ impl InnerUiManager {
                 let task = tokio::spawn(async move {
                     loop {
                         if let Ok(conn) = server.get_conn().await {
-                            info!("Ui Server got connection");
+                            info!(
+                                "UI Server got connection from: {:?}",
+                                conn.lock().await.remote_addr()
+                            );
                             match cloned.send(conn) {
-                                Ok(_) => info!("Ui connection sent"),
+                                Ok(_) => debug!("UI connection sent"),
                                 Err(e) => debug!("Failed to send UI connection: {:?}", e),
                             };
                         }
@@ -131,7 +135,7 @@ impl InnerUiManager {
             while let Ok(conn) = self.connections_rx.try_recv() {
                 info!("UI received connection");
                 self.add_connection(conn).await?;
-                info!("UI added connection");
+                debug!("UI added connection");
             }
         }
     }
@@ -139,20 +143,16 @@ impl InnerUiManager {
     async fn add_connection(&mut self, conn: Arc<Mutex<dyn ProtoConnection>>) -> Result<()> {
         let ip = conn.lock().await.remote_addr()?;
         let requester = self.requester.clone();
-        // info!("pre task");
         let task = tokio::spawn(async move {
-            // info!("pre lock");
             let mut conn = conn.lock().await;
-            // info!("post lock");
             let mut messager = Messager::new(&mut *conn);
             let packager = JsonPackager::default();
-
             loop {
                 if let Some(msg) = messager.next().await {
                     let msg: UiRequest = packager.decode(&msg.unwrap().into()).unwrap();
-                    info!("Request: {:?}", msg);
+                    trace!("Request: {:?}", msg);
                     let response = requester.send(msg).await;
-                    info!("Response: {:?}", response);
+                    trace!("Response: {:?}", response);
                     let response = response.unwrap();
                     let response = packager.encode(&response).unwrap();
                     if let Err(e) = messager.send(response).await {
@@ -161,9 +161,8 @@ impl InnerUiManager {
                 }
             }
         });
-        // info!("post task");
+        let task = task.await?;
         self.connections.push((ip, task));
-        // info!("{:?}", self.connections);
         Ok(())
     }
 }

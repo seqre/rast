@@ -9,7 +9,6 @@ use std::{
     vec,
 };
 
-
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
@@ -18,7 +17,6 @@ use rast::{
 };
 use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
 use tokio::sync::Mutex;
-
 
 type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
 

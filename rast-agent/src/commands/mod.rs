@@ -16,12 +16,14 @@ use crate::{
 pub mod filesystem;
 
 /// Command categories used for pretty-printing.
+#[derive(Debug)]
 pub enum CommandCategory {
     Misc,
     FilesystemManipulation,
 }
 
 /// Possible output types of the command execution.
+#[derive(Debug)]
 pub enum CommandOutput {
     Nothing,
     Text(String),

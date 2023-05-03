@@ -19,33 +19,6 @@ use crate::{
 #[derive(Default)]
 pub struct Cd;
 
-/// Print contents of the directory.
-#[derive(Default)]
-pub struct Ls;
-
-/// Print current directory.
-#[derive(Default)]
-pub struct Pwd;
-
-impl Ls {
-    fn get_dir_contents(path: PathBuf) -> Result<Vec<String>> {
-        let dir_entries = match path.read_dir() {
-            Ok(entries) => entries,
-            Err(e) => {
-                debug!("Failed to read directory contents: {:?}", e);
-                return Err(e.into());
-            },
-        };
-
-        let out = dir_entries
-            .filter(|e| e.is_ok())
-            .map(|e| e.unwrap().file_name().to_string_lossy().into())
-            .collect();
-
-        Ok(out)
-    }
-}
-
 #[async_trait]
 impl Command for Cd {
     fn get_name(&self) -> &'static str {
@@ -82,6 +55,33 @@ impl Command for Cd {
         Ok(CommandOutput::Nothing)
     }
 }
+
+/// Print contents of the directory.
+#[derive(Default)]
+pub struct Ls;
+
+impl Ls {
+    fn get_dir_contents(path: PathBuf) -> Result<Vec<String>> {
+        let dir_entries = match path.read_dir() {
+            Ok(entries) => entries,
+            Err(e) => {
+                debug!("Failed to read directory contents: {:?}", e);
+                return Err(e.into());
+            },
+        };
+
+        let out = dir_entries
+            .filter(|e| e.is_ok())
+            .map(|e| e.unwrap().file_name().to_string_lossy().into())
+            .collect();
+
+        Ok(out)
+    }
+}
+
+/// Print current directory.
+#[derive(Default)]
+pub struct Pwd;
 
 #[async_trait]
 impl Command for Ls {

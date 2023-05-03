@@ -70,6 +70,7 @@ impl ProtoServer for QuicServer {
 }
 
 #[pin_project::pin_project]
+#[derive(Debug)]
 struct QuicConnection {
     connection: Connection,
     recv: RecvStream,

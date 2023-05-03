@@ -10,30 +10,30 @@ pub(crate) type Result<T> = std::result::Result<T, RastError>;
 
 #[derive(Error, Debug)]
 pub enum RastError {
-    #[error("IO")]
+    #[error(transparent)]
     IO(#[from] std::io::Error),
 
     // TODO: group those 3 somehow into one?
-    #[error("network")]
+    #[error("network: {0}")]
     Network(String),
 
-    #[error("quic")]
+    #[error(transparent)]
     Quic(#[from] quinn::ConnectError),
 
-    #[error("quic")]
+    #[error(transparent)]
     Quic2(#[from] quinn::ConnectionError),
 
-    #[error("conversion")]
+    #[error(transparent)]
     Conversion(#[from] serde_json::Error),
 
     #[error(transparent)]
     Runtime(#[from] anyhow::Error),
 
-    #[error("encryption")]
+    #[error(transparent)]
     Encryption(#[from] rustls::Error),
 
-    #[error("encryption")]
-    Encryptaion2(#[from] rcgen::RcgenError),
+    #[error(transparent)]
+    Encryption2(#[from] rcgen::RcgenError),
 
     #[error("catch-all")]
     Unknown,

@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, vec};
 
-use anyhow::{Error, Result};
+use anyhow::{bail, Error, Result};
 use bidirectional_channel::ReceivedRequest;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
@@ -11,8 +11,11 @@ use rast::{
         c2_agent::{AgentMessage, AgentResponse, C2Request},
         ui_request::{IpData, UiRequest, UiResponse},
     },
-    protocols::{tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer},
-    settings::Settings,
+    protocols::{
+        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
+    },
+    settings::{Connection, Settings},
+    RastError,
 };
 use tokio::{
     sync::{
@@ -54,23 +57,31 @@ impl RastC2 {
         let (ctx, crx) = unbounded_channel();
         let mut servers = vec![];
 
-        if let Some(conf) = &settings.server.tcp {
-            let server = TcpFactory::new_server(conf).await?;
-            let cloned = ctx.clone();
-            let task = tokio::spawn(async move {
-                loop {
-                    if let Ok(conn) = server.get_conn().await {
-                        if let Err(e) = cloned.send(conn) {
-                            debug!("Failed to start TCP server: {:?}", e);
-                        };
+        for conf in settings.server.agent_listeners.iter() {
+            let server = match conf {
+                Connection::Tcp(tcp_conf) => TcpFactory::new_server(tcp_conf).await,
+                Connection::Quic(quic_conf) => QuicFactory::new_server(quic_conf).await,
+                _ => bail!(RastError::Unknown),
+            };
+
+            if let Ok(server) = server {
+                debug!("Creating agent listener: {server:?}");
+                let cloned = ctx.clone();
+                let task = tokio::spawn(async move {
+                    loop {
+                        if let Ok(conn) = server.get_conn().await {
+                            if let Err(e) = cloned.send(conn) {
+                                debug!("Failed to pass agent connection to C2: {:?}", e);
+                            };
+                        }
                     }
-                }
-            });
-            servers.push(task);
+                });
+                servers.push(task);
+            }
         }
 
-        let ui = if let Some(conf) = &settings.server.ui {
-            let ui = UiManager::with_settings(conf).await?;
+        let ui = if !&settings.server.ui_listeners.is_empty() {
+            let ui = UiManager::with_settings(&settings).await?;
             Some(ui)
         } else {
             None

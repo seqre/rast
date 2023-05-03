@@ -1,6 +1,7 @@
 //! Implementations of [`ProtoConnection`] for specific protocols.
 
 use std::{
+    collections::HashMap,
     fmt::Debug,
     net::SocketAddr,
     ops::{Deref, DerefMut},
@@ -14,7 +15,8 @@ use tokio::{
 };
 use tokio_util::codec::{BytesCodec, Framed};
 
-use crate::Result;
+use self::tcp::{TcpConf, TcpFactory};
+use crate::{settings::Connection, Result};
 
 pub mod quic;
 pub mod tcp;
@@ -22,24 +24,24 @@ pub mod tcp;
 
 /// Established connection over any network protocol.
 #[async_trait]
-pub trait ProtoConnection: Send + Sync + Unpin + AsyncRead + AsyncWrite {
+pub trait ProtoConnection: Debug + Send + Sync + Unpin + AsyncRead + AsyncWrite {
     /// Gets IP of the remote agent.
     fn local_addr(&self) -> Result<SocketAddr>;
     fn remote_addr(&self) -> Result<SocketAddr>;
 }
 
-impl Debug for dyn ProtoConnection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProtoConnection")
-            .field("local_addr", &self.local_addr())
-            .field("remote_addr", &self.remote_addr())
-            .finish()
-    }
-}
+// impl Debug for dyn ProtoConnection {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.debug_struct("ProtoConnection")
+//             .field("local_addr", &self.local_addr())
+//             .field("remote_addr", &self.remote_addr())
+//             .finish()
+//     }
+// }
 
 /// Server-side of any network protocol.
 #[async_trait]
-pub trait ProtoServer: Send + Sync {
+pub trait ProtoServer: Debug + Send + Sync {
     /// Waits for a new connection from the agent.
     async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection>>>;
 }
@@ -47,7 +49,7 @@ pub trait ProtoServer: Send + Sync {
 /// Creates new [ProtoConnection] and [ProtoServer] for network
 /// protocol.
 #[async_trait]
-pub trait ProtoFactory {
+pub trait ProtoFactory: Debug {
     type Conf;
 
     /// Returns new server for network protocol.

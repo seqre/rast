@@ -16,13 +16,16 @@ use crate::protocols::{
 };
 
 /// Creates [`ProtoServer`] and [`ProtoConnection`] for TCP communication.
+#[derive(Debug)]
 pub struct TcpFactory {}
 
+#[derive(Debug)]
 struct TcpServer {
     listener: TcpListener,
 }
 
 #[pin_project::pin_project]
+#[derive(Debug)]
 struct TcpConnection {
     stream: TcpStream,
 }

@@ -2,14 +2,17 @@
 
 use std::{fmt::Debug, net::SocketAddr, sync::Arc, vec};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::ui_request::{UiRequest, UiResponse},
-    protocols::{tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer},
-    settings,
+    protocols::{
+        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
+    },
+    settings::{self, Connection, Settings},
+    RastError,
 };
 use tokio::{
     sync::{
@@ -86,21 +89,29 @@ impl InnerUiManager {
         let (tx, rx) = unbounded_channel();
         let mut servers = vec![];
 
-        if let Some(conf) = &conf.tcp {
-            let server = TcpFactory::new_server(conf).await?;
-            let cloned = tx.clone();
-            let task = tokio::spawn(async move {
-                loop {
-                    if let Ok(conn) = server.get_conn().await {
-                        info!("Ui Server got connection");
-                        match cloned.send(conn) {
-                            Ok(_) => info!("Ui connection sent"),
-                            Err(e) => debug!("Failed to send UI connection: {:?}", e),
-                        };
+        for conf in settings.server.ui_listeners.iter() {
+            let server = match conf {
+                Connection::Tcp(tcp_conf) => TcpFactory::new_server(tcp_conf).await,
+                Connection::Quic(quic_conf) => QuicFactory::new_server(quic_conf).await,
+                _ => bail!(RastError::Unknown),
+            };
+
+            if let Ok(server) = server {
+                debug!("Creating UI listener: {server:?}");
+                let cloned = tx.clone();
+                let task = tokio::spawn(async move {
+                    loop {
+                        if let Ok(conn) = server.get_conn().await {
+                            info!("Ui Server got connection");
+                            match cloned.send(conn) {
+                                Ok(_) => info!("Ui connection sent"),
+                                Err(e) => debug!("Failed to send UI connection: {:?}", e),
+                            };
+                        }
                     }
-                }
-            });
-            servers.push(task);
+                });
+                servers.push(task);
+            }
         }
 
         let ui = InnerUiManager {

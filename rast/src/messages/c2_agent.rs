@@ -14,11 +14,16 @@ pub enum AgentMessage {
 /// Task request from C2.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum C2Request {
-    ExecCommand(String),
+    ExecShell(String),
+    GetCommands,
+    ExecCommand(String, Vec<String>),
 }
 
 /// Task response from agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentResponse {
-    CommandResponse(String),
+    ShellResponse(String),
+    Commands(Vec<(String, String)>),
+    CommandOutput(String),
+    Error(String),
 }

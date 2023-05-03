@@ -20,6 +20,10 @@ impl Context {
     }
 
     pub fn change_dir(&mut self, path: PathBuf) {
-        self.current_dir = path;
+        if path.is_relative() {
+            self.current_dir = self.current_dir.join(path);
+        } else {
+            self.current_dir = path;
+        }
     }
 }

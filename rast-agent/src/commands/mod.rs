@@ -9,17 +9,22 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use crate::{
-    commands::filesystem::{Cd, Ls, Pwd},
+    commands::{
+        filesystem::{Cd, Ls, Pwd},
+        perms::Whoami,
+    },
     context::Context,
 };
 
 pub mod filesystem;
+pub mod perms;
 
 /// Command categories used for pretty-printing.
 #[derive(Debug)]
 pub enum CommandCategory {
     Misc,
     FilesystemManipulation,
+    Permissions,
 }
 
 /// Possible output types of the command execution.
@@ -78,6 +83,17 @@ impl Commands {
         commands
             .into_iter()
             .map(|c| (c.get_name().into(), c))
+            .collect()
+    }
+
+    pub fn get_command(&self, key: String) -> Option<&Box<dyn Command>> {
+        self.commands.get(&key)
+    }
+
+    pub fn get_supported_commands(&self) -> Vec<(String, String)> {
+        self.commands
+            .iter()
+            .map(|(key, cmd)| (key.clone(), cmd.get_short_desc().to_string()))
             .collect()
     }
 }

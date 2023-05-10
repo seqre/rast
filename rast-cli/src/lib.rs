@@ -10,14 +10,13 @@ use std::{
 };
 
 use futures_util::{sink::SinkExt, stream::StreamExt};
-use shellfish::{async_fn, Command, handler::DefaultAsyncHandler, Shell};
-use tokio::sync::Mutex;
-
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::ui_request::{UiRequest, UiResponse},
     protocols::{Messager, ProtoConnection},
 };
+use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
+use tokio::sync::Mutex;
 
 type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
 type State = ShellState;

@@ -3,18 +3,17 @@
 use std::sync::{Arc, RwLock};
 
 use anyhow::{bail, Result};
-use futures_util::{sink::SinkExt, stream::StreamExt};
-use tokio::{process::Command as SystemCommand, sync::Mutex};
-use tracing::{debug, info, trace};
-
 use commands::Commands;
+use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::c2_agent::{AgentMessage, AgentResponse, C2Request},
-    protocols::{Messager, ProtoConnection, ProtoFactory, quic::QuicFactory, tcp::TcpFactory},
-    RastError,
+    protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
     settings::{Connection, Settings},
+    RastError,
 };
+use tokio::{process::Command as SystemCommand, sync::Mutex};
+use tracing::{debug, info, trace};
 
 use crate::{
     commands::{Command, CommandOutput},

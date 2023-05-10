@@ -1,9 +1,8 @@
 use anyhow::Result;
-use tracing::info;
-use tracing_subscriber::filter::LevelFilter;
-
 use rast::settings::Settings;
 use rast_agent::RastAgent;
+use tracing::info;
+use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {

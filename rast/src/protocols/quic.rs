@@ -62,8 +62,8 @@ impl QuicFactory {
         let mut server_config = ServerConfig::with_crypto(Arc::new(server_crypto));
 
         let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-        #[cfg(any(windows, os = "linux"))]
-        transport_config.mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
+        // #[cfg(any(windows, os = "linux"))]
+        // transport_config.mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
 
         Ok(server_config)
     }
@@ -79,7 +79,7 @@ impl QuicFactory {
         };
 
         #[cfg(feature = "embed-cert")]
-            let cert: Vec<u8> = CERT.deref().clone();
+        let cert: Vec<u8> = CERT.deref().clone();
 
         let cert = rustls::Certificate(cert);
 
@@ -97,8 +97,8 @@ impl QuicFactory {
 
         let mut transport_config = quinn::TransportConfig::default();
 
-        #[cfg(any(windows, os = "linux"))]
-        transport_config.mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
+        // #[cfg(any(windows, os = "linux"))]
+        // transport_config.mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
         transport_config.keep_alive_interval(Some(Duration::from_secs(5)));
         client_config.transport_config(Arc::new(transport_config));
 

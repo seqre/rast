@@ -1,19 +1,41 @@
-use std::error::Error;
+use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
+use futures_util::{SinkExt, StreamExt};
 use rast::{
+    encoding::{JsonPackager, Packager},
     messages::ui_request::{UiRequest, UiResponse},
-    protocols::{tcp::TcpFactory, ProtoFactory},
-    settings::Settings,
+    protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
+    settings::{Connection, Settings},
+    RastError,
 };
 use rast_cli::{get_shell, ShellState};
-use shellfish::{async_fn, Command, Shell};
+use tokio::sync::Mutex;
+use tracing::{debug, info};
+use tracing_subscriber::filter::LevelFilter;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+async fn get_connection(settings: &Settings) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
+    for conf in settings.server.ui_listeners.iter() {
+        let conn = match conf {
+            Connection::Tcp(tcp_conf) => TcpFactory::new_client(tcp_conf).await,
+            Connection::Quic(quic_conf) => QuicFactory::new_client(quic_conf).await,
+            _ => bail!(RastError::Unknown),
+        };
+
+        if let Ok(conn) = conn {
+            info!("Connected to C2 at: {:?}", conn.lock().await.remote_addr()?);
+            return Ok(conn);
+        }
+    }
+
+    Err(RastError::Unknown.into())
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), RastError> {
     // tracing_subscriber::fmt()
-    //    .with_max_level(LevelFilter::INFO)
-    //    .init();
+    //     .with_max_level(LevelFilter::DEBUG)
+    //     .init();
 
     let conf = match Settings::new() {
         Ok(conf) => {
@@ -26,15 +48,8 @@ async fn main() -> Result<()> {
         },
     };
 
-    let connection = if let Some(conf) = &conf.server.ui {
-        let conf = &conf.tcp.unwrap();
-        TcpFactory::new_client(conf).await
-    } else {
-        Err(anyhow!("Can't connect to C2 using TCP."))
-    };
-
-    let state = ShellState::new(connection.unwrap());
-
+    let connection = get_connection(&conf).await?;
+    let state = ShellState::new(connection);
     let mut shell = get_shell(state);
 
     shell.run_async().await?;

@@ -1,13 +1,18 @@
-use std::{fmt::Debug, net::SocketAddr, ops::DerefMut, sync::Arc, task::Poll, vec};
+//! UI incoming connections handler.
 
-use anyhow::Result;
+use std::{fmt::Debug, net::SocketAddr, sync::Arc, time::Duration, vec};
+
+use anyhow::{bail, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
-use bytes::Bytes;
-use futures_util::{poll, sink::SinkExt, stream::StreamExt};
+use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
-    messages::ui_request::*,
-    protocols::{tcp::TcpFactory, *},
-    settings,
+    encoding::{JsonPackager, Packager},
+    messages::ui_request::{UiRequest, UiResponse},
+    protocols::{
+        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
+    },
+    settings::{self, Connection, Settings},
+    RastError,
 };
 use tokio::{
     sync::{
@@ -16,15 +21,48 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tokio_util::codec::BytesCodec;
-use tracing::{info, instrument, Instrument};
+use tracing::{debug, info, trace};
 
-use crate::c2::{C2Notification, Dummy};
-
+/// Manager of the UI connections.
 #[derive(Debug)]
 pub struct UiManager {
     inner_thread: JoinHandle<()>,
     requests: Responder<ReceivedRequest<UiRequest, UiResponse>>,
+}
+
+impl UiManager {
+    /// Creates new instance using provided [UI settings](settings::Ui)
+    pub async fn with_settings(settings: &Settings) -> Result<Self> {
+        let (tx, rx) = bounded(100);
+        let mut inner = InnerUiManager::with_settings(settings, tx).await?;
+        let inner = tokio::spawn(async move {
+            if let Err(e) = inner.run().await {
+                debug!("InnerUiManager exited with error: {:?}", e);
+            };
+        });
+
+        let ui = UiManager {
+            inner_thread: inner,
+            requests: rx,
+        };
+
+        info!("UiManager instance created");
+
+        Ok(ui)
+    }
+
+    // pub async fn message(&self, notification: C2Notification) {
+    //    todo!()
+    //}
+
+    /// Returns an attempt of getting [UI request](UiRequest).
+    #[tracing::instrument]
+    pub fn try_recv_request(&self) -> Result<ReceivedRequest<UiRequest, UiResponse>> {
+        match self.requests.try_recv() {
+            Ok(req) => Ok(req),
+            Err(e) => Err(e.into()),
+        }
+    }
 }
 
 struct InnerUiManager {
@@ -43,58 +81,40 @@ impl Debug for InnerUiManager {
     }
 }
 
-impl UiManager {
-    pub async fn with_settings(conf: &settings::Ui) -> Result<Self> {
-        let (tx, rx) = bounded(100);
-        let mut inner = InnerUiManager::with_settings(conf, tx).await?;
-        let inner = tokio::spawn(async move {
-            inner.run().await;
-        });
-
-        let ui = UiManager {
-            inner_thread: inner,
-            requests: rx,
-        };
-
-        info!("UiManager instance created");
-
-        Ok(ui)
-    }
-
-    // pub async fn message(&self, notification: C2Notification) {
-    //    todo!()
-    //}
-
-    #[tracing::instrument]
-    pub fn try_recv_request(&self) -> Result<ReceivedRequest<UiRequest, UiResponse>> {
-        match self.requests.try_recv() {
-            Ok(req) => Ok(req),
-            Err(e) => Err(e.into()),
-        }
-    }
-}
-
 impl InnerUiManager {
-    pub async fn with_settings(
-        conf: &settings::Ui,
+    async fn with_settings(
+        settings: &Settings,
         requester: Requester<UiRequest, UiResponse>,
     ) -> Result<Self> {
         let (tx, rx) = unbounded_channel();
         let mut servers = vec![];
 
-        if let Some(conf) = &conf.tcp {
-            let server = TcpFactory::new_server(conf).await?;
-            let cloned = tx.clone();
-            let task = tokio::spawn(async move {
-                loop {
-                    if let Ok(conn) = server.get_conn().await {
-                        info!("Ui Server got connection");
-                        cloned.send(conn);
-                        info!("Ui connection sent")
+        for conf in settings.server.ui_listeners.iter() {
+            let server = match conf {
+                Connection::Tcp(tcp_conf) => TcpFactory::new_server(tcp_conf).await,
+                Connection::Quic(quic_conf) => QuicFactory::new_server(quic_conf).await,
+                _ => bail!(RastError::Unknown),
+            };
+
+            if let Ok(server) = server {
+                debug!("Creating UI listener: {server:?}");
+                let cloned = tx.clone();
+                let task = tokio::spawn(async move {
+                    loop {
+                        if let Ok(conn) = server.get_conn().await {
+                            info!(
+                                "UI Server got connection from: {:?}",
+                                conn.lock().await.remote_addr()
+                            );
+                            match cloned.send(conn) {
+                                Ok(_) => debug!("UI connection sent"),
+                                Err(e) => debug!("Failed to send UI connection: {:?}", e),
+                            };
+                        }
                     }
-                }
-            });
-            servers.push(task);
+                });
+                servers.push(task);
+            }
         }
 
         let ui = InnerUiManager {
@@ -114,37 +134,34 @@ impl InnerUiManager {
             while let Ok(conn) = self.connections_rx.try_recv() {
                 info!("UI received connection");
                 self.add_connection(conn).await?;
-                info!("UI added connection");
+                debug!("UI added connection");
             }
         }
     }
 
     async fn add_connection(&mut self, conn: Arc<Mutex<dyn ProtoConnection>>) -> Result<()> {
-        let ip = conn.lock().await.get_ip()?;
+        let ip = conn.lock().await.remote_addr()?;
         let requester = self.requester.clone();
-        // info!("pre task");
         let task = tokio::spawn(async move {
-            // info!("pre lock");
             let mut conn = conn.lock().await;
-            // info!("post lock");
-            let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
-
+            let mut messager = Messager::new(&mut *conn);
+            let packager = JsonPackager::default();
             loop {
-                if let Some(msg) = frame.next().await {
-                    let msg: UiRequest = serde_json::from_slice(&msg.unwrap()).unwrap();
-                    info!("Request: {:?}", msg);
+                if let Some(msg) = messager.next().await {
+                    let msg: UiRequest = packager.decode(&msg.unwrap().into()).unwrap();
+                    trace!("Request: {:?}", msg);
                     let response = requester.send(msg).await;
-                    info!("Response: {:?}", response);
+                    trace!("Response: {:?}", response);
                     let response = response.unwrap();
-                    let response = serde_json::to_vec(&response).unwrap();
-                    frame.send(Bytes::from(response)).await;
+                    let response = packager.encode(&response).unwrap();
+                    if let Err(e) = messager.send(response).await {
+                        debug!("Failed to send UI response: {:?}", e);
+                    };
                 }
             }
         });
-        // info!("post task");
+        let task = task.await?;
         self.connections.push((ip, task));
-        // info!("{:?}", self.connections);
-        todo!();
         Ok(())
     }
 }

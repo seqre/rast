@@ -1,27 +1,22 @@
-use std::{io, net::SocketAddr};
-
 use anyhow::Result;
-use rast::{
-    protocols::{tcp::*, *},
-    settings::*,
-};
+use rast::settings::Settings;
 use rast_c2::RastC2;
-use tracing::{info, instrument};
+use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::INFO)
+        .with_max_level(LevelFilter::DEBUG)
         .init();
 
     let conf = match Settings::new() {
         Ok(conf) => {
-            info!("{conf:?}");
+            info!("Parsed settings: {conf:?}");
             conf
         },
         Err(e) => {
-            panic!("{e:?}");
+            panic!("Failed parsing settings: {e:?}");
         },
     };
 

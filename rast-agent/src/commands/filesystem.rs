@@ -1,3 +1,5 @@
+//! Filesystem-related commands.
+
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
@@ -5,6 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use tracing::debug;
 
 use super::CommandOutput;
 use crate::{
@@ -12,38 +15,9 @@ use crate::{
     context::Context,
 };
 
+/// Change directory.
 #[derive(Default)]
 pub struct Cd;
-#[derive(Default)]
-pub struct Ls;
-#[derive(Default)]
-pub struct Pwd;
-
-impl Cd {
-    pub fn new() -> Self {
-        Cd {}
-    }
-}
-
-impl Ls {
-    pub fn new() -> Self {
-        Ls {}
-    }
-
-    fn get_dir_contents(path: PathBuf) -> Vec<String> {
-        path.read_dir()
-            .unwrap()
-            .filter(|e| e.is_ok())
-            .map(|e| e.unwrap().file_name().into_string().unwrap())
-            .collect()
-    }
-}
-
-impl Pwd {
-    pub fn new() -> Self {
-        Pwd {}
-    }
-}
 
 #[async_trait]
 impl Command for Cd {
@@ -65,21 +39,49 @@ impl Command for Cd {
 
     async fn execute(&self, ctx: Arc<RwLock<Context>>, args: Vec<String>) -> Result<CommandOutput> {
         if args.len() > 1 {
-            anyhow!("Only one argument supported for cd");
+            return Err(anyhow!("Only one argument supported for cd"));
         }
 
         let path = PathBuf::from(args.get(0).unwrap());
 
         if !path.is_dir() {
-            anyhow!("No access or directory do not exist");
+            return Err(anyhow!("No access or directory do not exist"));
         }
 
+        // TODO: fix error handling
         let mut ctx = ctx.write().unwrap();
         ctx.change_dir(path);
 
         Ok(CommandOutput::Nothing)
     }
 }
+
+/// Print contents of the directory.
+#[derive(Default)]
+pub struct Ls;
+
+impl Ls {
+    fn get_dir_contents(path: PathBuf) -> Result<Vec<String>> {
+        let dir_entries = match path.read_dir() {
+            Ok(entries) => entries,
+            Err(e) => {
+                debug!("Failed to read directory contents: {:?}", e);
+                return Err(e.into());
+            },
+        };
+
+        let out = dir_entries
+            .filter(|e| e.is_ok())
+            .map(|e| e.unwrap().file_name().to_string_lossy().into())
+            .collect();
+
+        Ok(out)
+    }
+}
+
+/// Print current directory.
+#[derive(Default)]
+pub struct Pwd;
 
 #[async_trait]
 impl Command for Ls {
@@ -101,22 +103,29 @@ impl Command for Ls {
 
     async fn execute(&self, ctx: Arc<RwLock<Context>>, args: Vec<String>) -> Result<CommandOutput> {
         if args.is_empty() {
+            // TODO: fix error handling
             let ctx = ctx.read().unwrap();
-            let output = Ls::get_dir_contents(ctx.get_dir());
+            let output = match Ls::get_dir_contents(ctx.get_dir()) {
+                Ok(out) => out,
+                Err(e) => return Err(e),
+            };
             return Ok(CommandOutput::ListText(output));
         }
 
         if args.len() > 1 {
-            anyhow!("Only one argument supported for ls");
+            return Err(anyhow!("Only one argument supported for ls"));
         }
 
         let path = PathBuf::from(args.get(0).unwrap());
 
         if !path.is_dir() {
-            anyhow!("No access or directory do not exist");
+            return Err(anyhow!("No access or directory do not exist"));
         }
 
-        let output = Ls::get_dir_contents(path);
+        let output = match Ls::get_dir_contents(path) {
+            Ok(out) => out,
+            Err(e) => return Err(e),
+        };
 
         Ok(CommandOutput::ListText(output))
     }
@@ -142,9 +151,10 @@ impl Command for Pwd {
 
     async fn execute(&self, ctx: Arc<RwLock<Context>>, args: Vec<String>) -> Result<CommandOutput> {
         if !args.is_empty() {
-            anyhow!("No arguments supported for pwd");
+            return Err(anyhow!("No arguments supported for pwd"));
         }
 
+        // TODO: fix error handling
         let ctx = ctx.read().unwrap();
         let wd = ctx.get_dir();
 

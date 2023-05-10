@@ -1,32 +1,37 @@
+//! TCP implementation of [`ProtoConnection`].
 use std::{
     net::IpAddr,
-    pin::Pin,
+    pin::{pin, Pin},
     task::{Context, Poll},
 };
 
 use serde::Deserialize;
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
-    net::{
-        tcp::{OwnedReadHalf, OwnedWriteHalf},
-        TcpListener, TcpStream,
-    },
+    net::{TcpListener, TcpStream},
+};
+use tracing::debug;
+
+use crate::protocols::{
+    async_trait, Arc, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result, SocketAddr,
 };
 
-use crate::protocols::*;
-
+/// Creates [`ProtoServer`] and [`ProtoConnection`] for TCP communication.
+#[derive(Debug)]
 pub struct TcpFactory {}
 
-pub struct TcpServer {
+#[derive(Debug)]
+struct TcpServer {
     listener: TcpListener,
 }
 
 #[pin_project::pin_project]
-pub struct TcpConnection {
-    reader: OwnedReadHalf,
-    writer: OwnedWriteHalf,
+#[derive(Debug)]
+struct TcpConnection {
+    stream: TcpStream,
 }
 
+/// TCP connection related configuration values.
 #[derive(Debug, Deserialize, Copy, Clone)]
 pub struct TcpConf {
     pub ip: IpAddr,
@@ -35,15 +40,19 @@ pub struct TcpConf {
 
 impl TcpConnection {
     pub fn new(stream: TcpStream) -> Self {
-        let (reader, writer) = stream.into_split();
-        TcpConnection { reader, writer }
+        TcpConnection { stream }
     }
 }
 
 #[async_trait]
 impl ProtoConnection for TcpConnection {
-    fn get_ip(&self) -> Result<SocketAddr> {
-        let ip = self.reader.peer_addr()?;
+    fn local_addr(&self) -> Result<SocketAddr> {
+        let ip = self.stream.local_addr()?;
+        Ok(ip)
+    }
+
+    fn remote_addr(&self) -> Result<SocketAddr> {
+        let ip = self.stream.peer_addr()?;
         Ok(ip)
     }
 }
@@ -77,7 +86,10 @@ impl ProtoFactory for TcpFactory {
 impl ProtoServer for TcpServer {
     async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
         match self.listener.accept().await {
-            Ok((stream, _address)) => Ok(Arc::new(Mutex::new(TcpConnection::new(stream)))),
+            Ok((stream, address)) => {
+                debug!("Got connection from {:?}", address);
+                Ok(Arc::new(Mutex::new(TcpConnection::new(stream))))
+            },
             Err(e) => Err(e.into()),
         }
     }
@@ -89,7 +101,7 @@ impl AsyncRead for TcpConnection {
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
-        Pin::new(self.project().reader).poll_read(cx, buf)
+        Pin::new(self.project().stream).poll_read(cx, buf)
     }
 }
 
@@ -98,30 +110,33 @@ impl AsyncWrite for TcpConnection {
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &[u8],
-    ) -> Poll<Result<usize, std::io::Error>> {
-        Pin::new(self.project().writer).poll_write(cx, buf)
+    ) -> Poll<std::result::Result<usize, std::io::Error>> {
+        pin!(self.project().stream).poll_write(cx, buf)
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
-        Pin::new(self.project().writer).poll_flush(cx)
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<std::result::Result<(), std::io::Error>> {
+        pin!(self.project().stream).poll_flush(cx)
     }
 
     fn poll_shutdown(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), std::io::Error>> {
-        Pin::new(self.project().writer).poll_shutdown(cx)
+    ) -> Poll<std::result::Result<(), std::io::Error>> {
+        pin!(self.project().stream).poll_shutdown(cx)
     }
 
     fn poll_write_vectored(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         bufs: &[futures_io::IoSlice<'_>],
-    ) -> Poll<Result<usize, std::io::Error>> {
-        Pin::new(self.project().writer).poll_write_vectored(cx, bufs)
+    ) -> Poll<std::result::Result<usize, std::io::Error>> {
+        pin!(self.project().stream).poll_write_vectored(cx, bufs)
     }
 
     fn is_write_vectored(&self) -> bool {
-        self.writer.is_write_vectored()
+        self.stream.is_write_vectored()
     }
 }

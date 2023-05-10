@@ -1,5 +1,8 @@
+//! Context data of agent shell.
+
 use std::{env::current_dir, path::PathBuf};
 
+/// Context for [RastAgent](crate::RastAgent) built-in commands.
 #[derive(Default)]
 pub struct Context {
     current_dir: PathBuf,
@@ -7,9 +10,9 @@ pub struct Context {
 
 impl Context {
     pub fn new() -> Self {
-        Context {
-            current_dir: current_dir().unwrap(),
-        }
+        let current_dir = current_dir().expect("Failed to get current directory, panicking!");
+
+        Context { current_dir }
     }
 
     pub fn get_dir(&self) -> PathBuf {
@@ -17,6 +20,10 @@ impl Context {
     }
 
     pub fn change_dir(&mut self, path: PathBuf) {
-        self.current_dir = path;
+        if path.is_relative() {
+            self.current_dir = self.current_dir.join(path);
+        } else {
+            self.current_dir = path;
+        }
     }
 }

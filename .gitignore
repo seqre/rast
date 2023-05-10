@@ -13,3 +13,5 @@ Cargo.lock
 **/websocket.rs
 /rast-derive/
 /rast-tui/
+.idea/
+*.der

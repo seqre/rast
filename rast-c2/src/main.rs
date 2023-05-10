@@ -7,7 +7,7 @@ use tracing_subscriber::filter::LevelFilter;
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::INFO)
+        .with_max_level(LevelFilter::DEBUG)
         .init();
 
     let conf = match Settings::new() {

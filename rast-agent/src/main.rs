@@ -1,13 +1,14 @@
 use anyhow::Result;
-use rast::settings::Settings;
-use rast_agent::RastAgent;
 use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
+
+use rast::settings::Settings;
+use rast_agent::RastAgent;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::INFO)
+        .with_max_level(LevelFilter::DEBUG)
         .init();
 
     // TODO: add embedding during compile

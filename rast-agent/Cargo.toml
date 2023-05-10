@@ -11,7 +11,7 @@ keywords = ["c2", "rat"]
 publish = false
 
 [dependencies]
-rast = { path = "../rast", features = ["embed-cert"] }
+rast = { path = "../rast" } #, features = ["embed-cert"] }
 tokio = { workspace = true, features = ["rt", "process"] }
 tokio-util = { workspace = true }
 anyhow = { workspace = true }

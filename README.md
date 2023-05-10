@@ -18,6 +18,18 @@ isn't), and hopefully working (unless it isn't)!
   </picture>
 </a>
 
+## Usage
+
+First, compile the project to generate all binaries:
+
+```sh
+cargo build --release
+```
+
+The binaries will be located in your configured Cargo `TARGET` directory.
+
+Populate the configuration files with values as you need, and run the project.
+
 
 ## Contributors
 <a href="https://github.com/seqre/rast/graphs/contributors">

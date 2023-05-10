@@ -2,18 +2,17 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Result};
 use futures_util::{SinkExt, StreamExt};
-use tokio::sync::Mutex;
-use tracing::{debug, info};
-use tracing_subscriber::filter::LevelFilter;
-
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::ui_request::{UiRequest, UiResponse},
-    protocols::{Messager, ProtoConnection, ProtoFactory, quic::QuicFactory, tcp::TcpFactory},
-    RastError,
+    protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
     settings::{Connection, Settings},
+    RastError,
 };
 use rast_cli::{get_shell, ShellState};
+use tokio::sync::Mutex;
+use tracing::{debug, info};
+use tracing_subscriber::filter::LevelFilter;
 
 async fn get_connection(settings: &Settings) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
     for conf in settings.server.ui_listeners.iter() {

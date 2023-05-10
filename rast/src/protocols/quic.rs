@@ -18,7 +18,7 @@ use tracing::{debug, info, trace};
 
 use crate::{
     protocols::{
-        Arc, async_trait, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result,
+        async_trait, Arc, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result,
         SocketAddr,
     },
     RastError,
@@ -63,14 +63,15 @@ impl QuicFactory {
 
         let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
         // #[cfg(any(windows, os = "linux"))]
-        // transport_config.mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
+        // transport_config.
+        // mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
 
         Ok(server_config)
     }
 
     fn get_client_config(conf: &QuicConf) -> Result<ClientConfig> {
         #[cfg(not(feature = "embed-cert"))]
-            let cert = {
+        let cert = {
             let cwd = std::env::current_dir()?;
             let cert_path = cwd.join("cert.der");
             info!("Loading cert from {cert_path:?}");
@@ -111,7 +112,7 @@ impl ProtoFactory for QuicFactory {
     type Conf = QuicConf;
 
     async fn new_server(conf: &Self::Conf) -> Result<Arc<dyn ProtoServer>> {
-        let config = QuicFactory::get_server_config(&conf)?;
+        let config = QuicFactory::get_server_config(conf)?;
         let socket = SocketAddr::new(conf.ip, conf.port);
         let endpoint = Endpoint::server(config, socket)?;
 
@@ -122,7 +123,7 @@ impl ProtoFactory for QuicFactory {
         let local = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
         let mut endpoint = Endpoint::client(local)?;
 
-        let client_config = QuicFactory::get_client_config(&conf)?;
+        let client_config = QuicFactory::get_client_config(conf)?;
         endpoint.set_default_client_config(client_config);
 
         let server = SocketAddr::new(conf.ip, conf.port);

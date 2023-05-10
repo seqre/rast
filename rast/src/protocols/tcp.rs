@@ -13,7 +13,7 @@ use tokio::{
 use tracing::debug;
 
 use crate::protocols::{
-    Arc, async_trait, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result, SocketAddr,
+    async_trait, Arc, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result, SocketAddr,
 };
 
 /// Creates [`ProtoServer`] and [`ProtoConnection`] for TCP communication.

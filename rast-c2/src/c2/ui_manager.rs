@@ -5,6 +5,15 @@ use std::{fmt::Debug, net::SocketAddr, sync::Arc, time::Duration, vec};
 use anyhow::{bail, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use rast::{
+    encoding::{JsonPackager, Packager},
+    messages::ui_request::{UiRequest, UiResponse},
+    protocols::{
+        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
+    },
+    settings::{self, Connection, Settings},
+    RastError,
+};
 use tokio::{
     sync::{
         mpsc::{unbounded_channel, UnboundedReceiver},
@@ -13,16 +22,6 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::{debug, info, trace};
-
-use rast::{
-    encoding::{JsonPackager, Packager},
-    messages::ui_request::{UiRequest, UiResponse},
-    protocols::{
-        Messager, ProtoConnection, ProtoFactory, ProtoServer, quic::QuicFactory, tcp::TcpFactory,
-    },
-    RastError,
-    settings::{self, Connection, Settings},
-};
 
 /// Manager of the UI connections.
 #[derive(Debug)]

@@ -5,6 +5,18 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc, vec};
 use anyhow::{bail, Error, Result};
 use bidirectional_channel::ReceivedRequest;
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use rast::{
+    encoding::{JsonPackager, Packager},
+    messages::{
+        c2_agent::{AgentMessage, AgentResponse, C2Request},
+        ui_request::{IpData, UiRequest, UiResponse},
+    },
+    protocols::{
+        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
+    },
+    settings::{Connection, Settings},
+    RastError,
+};
 use tokio::{
     sync::{
         mpsc::{unbounded_channel, UnboundedReceiver},
@@ -13,19 +25,6 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::{debug, info, trace};
-
-use rast::{
-    encoding::{JsonPackager, Packager},
-    messages::{
-        c2_agent::{AgentMessage, AgentResponse, C2Request},
-        ui_request::{IpData, UiRequest, UiResponse},
-    },
-    protocols::{
-        Messager, ProtoConnection, ProtoFactory, ProtoServer, quic::QuicFactory, tcp::TcpFactory,
-    },
-    RastError,
-    settings::{Connection, Settings},
-};
 
 use crate::c2::ui_manager::UiManager;
 

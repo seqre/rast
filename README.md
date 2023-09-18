@@ -1,3 +1,5 @@
+## Stopped working on it for now but planning on going back at some point.
+
 ![Rast logo](assets/logo.png)
 
 # Rast

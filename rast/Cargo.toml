@@ -16,7 +16,7 @@ serde = { version = "1.0" }
 serde_json = { version = "1.0" }
 tokio = { version = "1.21", features = [ "full" ] }
 tokio-util = { version = "0.7", features = [ "full" ] }
-tokio-tungstenite = { version = "0.17" }
+tokio-tungstenite = { version = "0.20" }
 async-trait = { version = "0.1" }
 glob = { version = "0.3" }
 anyhow = { version = "1.0" }

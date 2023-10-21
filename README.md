@@ -8,8 +8,6 @@ A Remote Administration Tool (RAT) and Command and Control (C2) server in Rust!
 Blazingly fast by default 🚀 (unless it isn't), fully asynchronous (unless it
 isn't), and hopefully working (unless it isn't)!
 
-## Star History
-
 <a href="https://star-history.com/#seqre/rast&Date">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=seqre/rast&type=Date&theme=dark" />

@@ -15,3 +15,10 @@ isn't), and hopefully working (unless it isn't)!
     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=seqre/rast&type=Date" />
   </picture>
 </a>
+
+
+## Contributors
+<a href="https://github.com/seqre/rast/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=seqre/rast" />
+</a>
+

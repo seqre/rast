@@ -1,12 +1,11 @@
-use std::{net::SocketAddr, process::Command, sync::Arc};
+
 
 use anyhow::Result;
 use rast::{
-    protocols::{tcp::*, *},
     settings::*,
 };
 use rast_agent::RastAgent;
-use tracing::{info, instrument};
+use tracing::{info};
 use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main(flavor = "current_thread")]

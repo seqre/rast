@@ -1,9 +1,9 @@
-use std::{fmt::Debug, net::SocketAddr, ops::DerefMut, sync::Arc, task::Poll, vec};
+use std::{fmt::Debug, net::SocketAddr, ops::DerefMut, sync::Arc, vec};
 
 use anyhow::Result;
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use bytes::Bytes;
-use futures_util::{poll, sink::SinkExt, stream::StreamExt};
+use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     messages::ui_request::*,
     protocols::{tcp::TcpFactory, *},
@@ -17,9 +17,9 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_util::codec::BytesCodec;
-use tracing::{info, instrument, Instrument};
+use tracing::{info};
 
-use crate::c2::{C2Notification, Dummy};
+
 
 #[derive(Debug)]
 pub struct UiManager {

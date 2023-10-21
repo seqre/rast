@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use anyhow::Result;
+
 use serde::{Deserialize, Serialize};
 
 type Ip = SocketAddr;

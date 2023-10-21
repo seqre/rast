@@ -14,9 +14,9 @@ use rast::{
     messages::ui_request::{UiRequest, UiResponse},
     protocols::{get_rw_frame, ProtoConnection},
 };
-use shellfish::{async_fn, handler::DefaultAsyncHandler, AsyncHandler, Command, Shell};
+use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
 use tokio::sync::Mutex;
-use tokio_util::codec::{BytesCodec, Framed};
+use tokio_util::codec::{BytesCodec};
 
 pub type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
 

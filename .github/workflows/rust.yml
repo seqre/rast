@@ -24,7 +24,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache Cargo registry
         uses: actions/cache@v3
@@ -53,7 +53,7 @@ jobs:
     needs: ['build']
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache Cargo registry
         uses: actions/cache@v3
@@ -76,7 +76,7 @@ jobs:
     needs: ['build']
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache Cargo registry
         uses: actions/cache@v3
@@ -99,7 +99,7 @@ jobs:
     needs: ['build']
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache Cargo registry
         uses: actions/cache@v3

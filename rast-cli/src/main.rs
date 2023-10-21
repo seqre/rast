@@ -1,13 +1,12 @@
-use std::error::Error;
+
 
 use anyhow::{anyhow, Result};
 use rast::{
-    messages::ui_request::{UiRequest, UiResponse},
     protocols::{tcp::TcpFactory, ProtoFactory},
     settings::Settings,
 };
 use rast_cli::{get_shell, ShellState};
-use shellfish::{async_fn, Command, Shell};
+
 
 #[tokio::main]
 async fn main() -> Result<()> {

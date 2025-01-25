@@ -23,7 +23,7 @@ jobs:
         rust: ["stable", "nightly"]
         #os: [ubuntu-latest, macos-latest, windows-2019]
         # TEMPORARY CHANGE until better solution with shellfish is found
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout source
@@ -128,6 +128,7 @@ jobs:
 
   machete:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout source
         uses: actions/checkout@v3

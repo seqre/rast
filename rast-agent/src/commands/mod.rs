@@ -9,10 +9,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use crate::{
-    commands::{
-        filesystem::{Cd, Ls, Pwd},
-        perms::Whoami,
-    },
+    commands::perms::Whoami,
     context::Context,
 };
 
@@ -32,7 +29,7 @@ pub enum CommandCategory {
 pub enum CommandOutput {
     Nothing,
     Text(String),
-    ListText(Vec<String>),
+    ListOfText(Vec<String>),
 }
 
 /// General interface for built-in commands.
@@ -74,12 +71,8 @@ impl Commands {
     }
 
     fn get_commands() -> HashMap<String, Box<dyn Command>> {
-        let commands: Vec<Box<dyn Command>> = vec![
-            Box::new(Cd::default()),
-            Box::new(Ls::default()),
-            Box::new(Pwd::default()),
-            Box::new(Whoami::default()),
-        ];
+        let mut commands: Vec<Box<dyn Command>> = vec![Box::new(Whoami)];
+        commands.extend(filesystem::get_commands());
 
         commands
             .into_iter()

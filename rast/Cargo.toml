@@ -22,15 +22,16 @@ futures-util = { workspace = true, features = ["sink"] }
 bytes = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
+ulid = { workspace = true }
 
-config = { version = "0.13" }
+config = { version = "0.15" }
 glob = { version = "0.3" }
 futures-io = { version = "0.3" }
-pin-project = "1.0"
-quinn = { version = "0.9" }
-rustls = { version = "0.20.7" }
-rcgen = { version = "0.10" }
-include-flate = { version = "0.2" }
+pin-project = "1.1"
+quinn = { version = "0.11" }
+rustls = { version = "0.23" }
+rcgen = { version = "0.13" }
+include-flate = { version = "0.3" }
 
 [features]
 default = []

@@ -21,6 +21,9 @@ futures-util = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+ulid = { workspace = true }
+rast-agent = { path = "../rast-agent" }
+rast-c2 = { path = "../rast-c2" }
 
 crossterm = { version = "0.25" }
-shellfish = { version = "0.7", default-features = true, features = [ "async", "tokio" ]}
+shellfish = { version = "0.10", default-features = true, features = [ "async", "tokio", "rustyline" ]}

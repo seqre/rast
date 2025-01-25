@@ -1,6 +1,7 @@
 //! The C2 server part of the Rast project.
 
 pub mod c2;
+pub mod messages;
 
 pub use c2::RastC2;
 

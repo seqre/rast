@@ -1,24 +1,20 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, bail, Result};
-use futures_util::{SinkExt, StreamExt};
+use anyhow::{bail, Result};
 use rast::{
-    encoding::{JsonPackager, Packager},
-    messages::ui_request::{UiRequest, UiResponse},
-    protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
+    protocols::{quic::QuicFactory, tcp::TcpFactory, ProtoConnection, ProtoFactory},
     settings::{Connection, Settings},
     RastError,
 };
 use rast_cli::{get_shell, ShellState};
 use tokio::sync::Mutex;
-use tracing::{debug, info};
-use tracing_subscriber::filter::LevelFilter;
+use tracing::info;
 
 async fn get_connection(settings: &Settings) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
     for conf in settings.server.ui_listeners.iter() {
         let conn = match conf {
-            Connection::Tcp(tcp_conf) => TcpFactory::new_client(tcp_conf).await,
-            Connection::Quic(quic_conf) => QuicFactory::new_client(quic_conf).await,
+            Connection::Tcp(tcp_conf) => TcpFactory::new_connection(tcp_conf).await,
+            Connection::Quic(quic_conf) => QuicFactory::new_connection(quic_conf).await,
             _ => bail!(RastError::Unknown),
         };
 

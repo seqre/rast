@@ -3,10 +3,10 @@ server:
     - tcp:
         ip: &ip 127.0.0.1
         port: 42069
-    - quic:
-        ip: *ip
-        port: 42071
-        server_name: &name rast-c2
+#    - quic:
+#        ip: *ip
+#        port: 42071
+#        server_name: &name rast-c2
 
   ui_listeners:
     - tcp:
@@ -18,7 +18,7 @@ agent:
     - tcp:
         ip: *ip
         port: 42069
-    - quic:
-        ip: *ip
-        port: 42071
-        server_name: *name
+#    - quic:
+#        ip: *ip
+#        port: 42071
+#        server_name: *name

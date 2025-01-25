@@ -1,27 +1,22 @@
 //! The Rast project commonly used functionalities.
-use thiserror::Error;
+
+use crate::protocols::NetworkError;
 
 pub mod encoding;
 pub mod messages;
 pub mod protocols;
 pub mod settings;
+pub mod agent;
 
-pub(crate) type Result<T> = std::result::Result<T, RastError>;
+pub type Result<T> = std::result::Result<T, RastError>;
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum RastError {
     #[error(transparent)]
     IO(#[from] std::io::Error),
 
-    // TODO: group those 3 somehow into one?
-    #[error("network: {0}")]
-    Network(String),
-
     #[error(transparent)]
-    Quic(#[from] quinn::ConnectError),
-
-    #[error(transparent)]
-    Quic2(#[from] quinn::ConnectionError),
+    Network(#[from] NetworkError),
 
     #[error(transparent)]
     Conversion(#[from] serde_json::Error),
@@ -30,10 +25,13 @@ pub enum RastError {
     Runtime(#[from] anyhow::Error),
 
     #[error(transparent)]
-    Encryption(#[from] rustls::Error),
+    RustTls(#[from] rustls::Error),
 
     #[error(transparent)]
-    Encryption2(#[from] rcgen::RcgenError),
+    X509(#[from] rcgen::Error),
+
+    #[error("TODO: {0}")]
+    TODO(String),
 
     #[error("catch-all")]
     Unknown,

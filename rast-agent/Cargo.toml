@@ -22,6 +22,8 @@ tracing-subscriber = { workspace = true }
 futures-util = { workspace = true }
 bytes = { workspace = true }
 async-trait = { workspace = true }
+ulid = { workspace = true }
 
-rust-embed = { version = "6.4" }
-whoami = { version = "1.4" }
+rust-embed = { version = "8.5" }
+whoami = { version = "1.5" }
+log = "0.4.25"

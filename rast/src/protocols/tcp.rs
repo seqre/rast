@@ -71,7 +71,7 @@ impl ProtoFactory for TcpFactory {
         }
     }
 
-    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
+    async fn new_connection(conf: &Self::Conf) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
         let address = SocketAddr::new(conf.ip, conf.port);
         let stream = TcpStream::connect(address).await;
 

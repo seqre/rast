@@ -15,6 +15,13 @@ use crate::{
     context::Context,
 };
 
+pub(super) fn get_commands() -> Vec<Box<dyn Command>> {
+    vec![
+        Box::new(Cd),
+        Box::new(Ls),
+        Box::new(Pwd),
+    ]
+}
 /// Change directory.
 #[derive(Default)]
 pub struct Cd;
@@ -42,7 +49,7 @@ impl Command for Cd {
             return Err(anyhow!("Only one argument supported for cd"));
         }
 
-        let path = PathBuf::from(args.get(0).unwrap());
+        let path = PathBuf::from(args.first().unwrap());
 
         if !path.is_dir() {
             return Err(anyhow!("No access or directory do not exist"));
@@ -109,14 +116,14 @@ impl Command for Ls {
                 Ok(out) => out,
                 Err(e) => return Err(e),
             };
-            return Ok(CommandOutput::ListText(output));
+            return Ok(CommandOutput::ListOfText(output));
         }
 
         if args.len() > 1 {
             return Err(anyhow!("Only one argument supported for ls"));
         }
 
-        let path = PathBuf::from(args.get(0).unwrap());
+        let path = PathBuf::from(args.first().unwrap());
 
         if !path.is_dir() {
             return Err(anyhow!("No access or directory do not exist"));
@@ -127,7 +134,7 @@ impl Command for Ls {
             Err(e) => return Err(e),
         };
 
-        Ok(CommandOutput::ListText(output))
+        Ok(CommandOutput::ListOfText(output))
     }
 }
 

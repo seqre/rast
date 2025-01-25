@@ -1,27 +1,29 @@
-//! UI incoming connections handler.
+//! UI incoming connections' handler.
 
-use std::{fmt::Debug, net::SocketAddr, sync::Arc, time::Duration, vec};
+use std::{fmt::Debug, net::SocketAddr, sync::Arc, vec};
 
 use anyhow::{bail, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
-use futures_util::{sink::SinkExt, stream::StreamExt};
+use futures_util::sink::SinkExt;
 use rast::{
-    encoding::{JsonPackager, Packager},
-    messages::ui_request::{UiRequest, UiResponse},
+    encoding::JsonPackager,
     protocols::{
         quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
     },
-    settings::{self, Connection, Settings},
+    settings::{Connection, Settings},
     RastError,
 };
 use tokio::{
     sync::{
-        mpsc::{unbounded_channel, UnboundedReceiver},
+        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
         Mutex,
     },
     task::JoinHandle,
 };
-use tracing::{debug, info, trace};
+use tracing::{debug, info};
+use rast::encoding::Packager;
+use rast::messages::Message;
+use crate::messages::{UiRequest, UiResponse};
 
 /// Manager of the UI connections.
 #[derive(Debug)]
@@ -35,11 +37,7 @@ impl UiManager {
     pub async fn with_settings(settings: &Settings) -> Result<Self> {
         let (tx, rx) = bounded(100);
         let mut inner = InnerUiManager::with_settings(settings, tx).await?;
-        let inner = tokio::spawn(async move {
-            if let Err(e) = inner.run().await {
-                debug!("InnerUiManager exited with error: {:?}", e);
-            };
-        });
+        let inner = tokio::spawn(async move { inner.run().await });
 
         let ui = UiManager {
             inner_thread: inner,
@@ -50,11 +48,7 @@ impl UiManager {
 
         Ok(ui)
     }
-
-    // pub async fn message(&self, notification: C2Notification) {
-    //    todo!()
-    //}
-
+    
     /// Returns an attempt of getting [UI request](UiRequest).
     #[tracing::instrument]
     pub fn try_recv_request(&self) -> Result<ReceivedRequest<UiRequest, UiResponse>> {
@@ -90,31 +84,8 @@ impl InnerUiManager {
         let mut servers = vec![];
 
         for conf in settings.server.ui_listeners.iter() {
-            let server = match conf {
-                Connection::Tcp(tcp_conf) => TcpFactory::new_server(tcp_conf).await,
-                Connection::Quic(quic_conf) => QuicFactory::new_server(quic_conf).await,
-                _ => bail!(RastError::Unknown),
-            };
-
-            if let Ok(server) = server {
-                debug!("Creating UI listener: {server:?}");
-                let cloned = tx.clone();
-                let task = tokio::spawn(async move {
-                    loop {
-                        if let Ok(conn) = server.get_conn().await {
-                            info!(
-                                "UI Server got connection from: {:?}",
-                                conn.lock().await.remote_addr()
-                            );
-                            match cloned.send(conn) {
-                                Ok(_) => debug!("UI connection sent"),
-                                Err(e) => debug!("Failed to send UI connection: {:?}", e),
-                            };
-                        }
-                    }
-                });
-                servers.push(task);
-            }
+            let task = InnerUiManager::create_listener(conf, tx.clone()).await?;
+            servers.push(task);
         }
 
         let ui = InnerUiManager {
@@ -129,12 +100,45 @@ impl InnerUiManager {
         Ok(ui)
     }
 
-    async fn run(&mut self) -> Result<()> {
+    async fn create_listener(
+        conf: &Connection,
+        tx: UnboundedSender<Arc<Mutex<dyn ProtoConnection>>>,
+    ) -> Result<JoinHandle<()>> {
+        let server = match conf {
+            Connection::Tcp(tcp_conf) => TcpFactory::new_server(tcp_conf).await,
+            Connection::Quic(quic_conf) => QuicFactory::new_server(quic_conf).await,
+            _ => bail!(RastError::Unknown),
+        };
+
+        if let Ok(server) = server {
+            debug!("Creating UI listener: {server:?}");
+            let task = tokio::spawn(async move {
+                loop {
+                    if let Ok(conn) = server.get_conn().await {
+                        info!(
+                            "UI Server got connection from: {:?}",
+                            conn.lock().await.remote_addr()
+                        );
+                        match tx.send(conn) {
+                            Ok(_) => debug!("UI connection sent"),
+                            Err(e) => debug!("Failed to send UI connection: {:?}", e),
+                        };
+                    }
+                }
+            });
+            Ok(task)
+        } else {
+            bail!(RastError::Unknown)
+        }
+    }
+
+    async fn run(&mut self){
         loop {
-            while let Ok(conn) = self.connections_rx.try_recv() {
+            while let Some(conn) = self.connections_rx.recv().await {
                 info!("UI received connection");
-                self.add_connection(conn).await?;
-                debug!("UI added connection");
+                if self.add_connection(conn).await.is_ok() {
+                    debug!("UI added connection");
+                }
             }
         }
     }
@@ -144,24 +148,39 @@ impl InnerUiManager {
         let requester = self.requester.clone();
         let task = tokio::spawn(async move {
             let mut conn = conn.lock().await;
-            let mut messager = Messager::new(&mut *conn);
-            let packager = JsonPackager::default();
+            let mut messager = Messager::with_packager(&mut *conn, JsonPackager);
             loop {
-                if let Some(msg) = messager.next().await {
-                    let msg: UiRequest = packager.decode(&msg.unwrap().into()).unwrap();
-                    trace!("Request: {:?}", msg);
-                    let response = requester.send(msg).await;
-                    trace!("Response: {:?}", response);
-                    let response = response.unwrap();
-                    let response = packager.encode(&response).unwrap();
-                    if let Err(e) = messager.send(response).await {
-                        debug!("Failed to send UI response: {:?}", e);
-                    };
+                if let Ok(msg) = messager.receive().await {
+                    let msg: Message = msg;
+                    
+                    if let Ok(uireq) = JsonPackager::decode(&msg.data) {
+                        match requester.send(uireq).await {
+                            Ok(response) => {
+                                let bytes = JsonPackager::encode(&response).unwrap();
+                                let response = msg.respond(bytes.into());
+                                if let Err(e) = messager.send(&response).await {
+                                    debug!("Failed to send response: {:?}", e);
+                                };
+                            },
+                            Err(e) => {
+                                debug!("Failed to handle message: {:?}", e);
+                            },
+                        }
+                    }
+                    
+                    
                 }
             }
         });
-        let task = task.await?;
         self.connections.push((ip, task));
         Ok(())
     }
 }
+
+// trace!("Request: {:?}", msg);
+// let response = requester.send(msg).await;
+// trace!("Response: {:?}", response);
+// let response = response.unwrap();
+// if let Err(e) = messager.send(&response).await {
+// debug!("Failed to send UI response: {:?}", e);
+// };

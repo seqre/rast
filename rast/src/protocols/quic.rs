@@ -2,7 +2,6 @@
 use std::{
     fs,
     net::{IpAddr, Ipv4Addr},
-    ops::Deref,
     pin::{pin, Pin},
     task::{Context, Poll},
     time::Duration,
@@ -11,15 +10,16 @@ use std::{
 #[cfg(feature = "embed-cert")]
 use include_flate::flate;
 use quinn::{ClientConfig, Connection, Endpoint, RecvStream, SendStream, ServerConfig};
-use rustls::ServerConfig as RustlsServerConfig;
+use rcgen::{CertifiedKey, PublicKeyData};
+use rustls::pki_types::pem::PemObject;
 use serde::Deserialize;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tracing::{debug, info, trace};
 
 use crate::{
     protocols::{
-        async_trait, Arc, Debug, Mutex, ProtoConnection, ProtoFactory, ProtoServer, Result,
-        SocketAddr,
+        async_trait, Arc, Debug, Mutex, NetworkError, ProtoConnection, ProtoFactory, ProtoServer,
+        Result, SocketAddr,
     },
     RastError,
 };
@@ -40,26 +40,22 @@ impl QuicFactory {
         let key_path = cwd.join("key.der");
 
         let subject_alt_names = vec!["localhost".into(), conf.server_name.to_string()];
-        let cert = rcgen::generate_simple_self_signed(subject_alt_names).unwrap();
-        let key = cert.serialize_private_key_der();
-        let cert = cert.serialize_der()?;
 
-        fs::write(&cert_path, &cert)?;
+        let CertifiedKey { cert, key_pair } =
+            rcgen::generate_simple_self_signed(subject_alt_names)?;
+
+        fs::write(&cert_path, cert.der())?;
         info!("Created cert at {cert_path:?}");
-        fs::write(&key_path, &key)?;
+        fs::write(&key_path, key_pair.der_bytes())?;
         info!("Created key at {key_path:?}");
 
-        let key = rustls::PrivateKey(key);
-        let certs = vec![rustls::Certificate(cert)];
+        let key =
+            rustls::pki_types::PrivateKeyDer::from_pem_slice(key_pair.serialize_pem().as_ref())
+                .map_err(|e| RastError::TODO(e.to_string()))?;
+        let certs = vec![rustls::pki_types::CertificateDer::from(cert)];
 
-        let mut server_crypto: RustlsServerConfig = RustlsServerConfig::builder()
-            .with_safe_defaults()
-            .with_no_client_auth()
-            .with_single_cert(certs, key)?;
-        server_crypto.alpn_protocols = ALPN_QUIC_HTTP.iter().map(|&x| x.into()).collect();
-        server_crypto.key_log = Arc::new(rustls::KeyLogFile::new());
-
-        let mut server_config = ServerConfig::with_crypto(Arc::new(server_crypto));
+        // let mut server_config = ServerConfig::with_crypto(Arc::new(server_crypto));
+        let mut server_config = ServerConfig::with_single_cert(certs, key)?;
 
         let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
         // #[cfg(any(windows, os = "linux"))]
@@ -82,24 +78,19 @@ impl QuicFactory {
         #[cfg(feature = "embed-cert")]
         let cert: Vec<u8> = CERT.deref().clone();
 
-        let cert = rustls::Certificate(cert);
+        let cert = rustls::pki_types::CertificateDer::from(cert);
 
         let mut roots = rustls::RootCertStore::empty();
-        roots.add(&cert);
+        roots.add(cert)?;
 
-        let mut client_crypto = rustls::ClientConfig::builder()
-            .with_safe_defaults()
-            .with_root_certificates(roots)
-            .with_no_client_auth();
-        client_crypto.alpn_protocols = ALPN_QUIC_HTTP.iter().map(|&x| x.into()).collect();
-        client_crypto.key_log = Arc::new(rustls::KeyLogFile::new());
-
-        let mut client_config = ClientConfig::new(Arc::new(client_crypto));
+        let mut client_config = ClientConfig::with_root_certificates(Arc::new(roots))
+            .map_err(|e| RastError::TODO(e.to_string()))?;
 
         let mut transport_config = quinn::TransportConfig::default();
 
         // #[cfg(any(windows, os = "linux"))]
-        // transport_config.mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
+        // transport_config.
+        // mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
         transport_config.keep_alive_interval(Some(Duration::from_secs(5)));
         client_config.transport_config(Arc::new(transport_config));
 
@@ -119,7 +110,7 @@ impl ProtoFactory for QuicFactory {
         Ok(Arc::new(QuicServer::new(endpoint)))
     }
 
-    async fn new_client(conf: &Self::Conf) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
+    async fn new_connection(conf: &Self::Conf) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
         let local = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
         let mut endpoint = Endpoint::client(local)?;
 
@@ -127,9 +118,14 @@ impl ProtoFactory for QuicFactory {
         endpoint.set_default_client_config(client_config);
 
         let server = SocketAddr::new(conf.ip, conf.port);
-        let conn = endpoint.connect(server, &conf.server_name)?;
-        let conn = conn.await?;
-        let (mut send, recv) = conn.open_bi().await?;
+        let conn = endpoint
+            .connect(server, &conf.server_name)
+            .map_err(NetworkError::QuicNewConnection)?;
+        let conn = conn.await.map_err(NetworkError::QuicExistingConnection)?;
+        let (mut send, recv) = conn
+            .open_bi()
+            .await
+            .map_err(NetworkError::QuicExistingConnection)?;
 
         trace!("Sending single byte to open connection");
         let out = send.write(&[0u8]).await;
@@ -153,9 +149,12 @@ impl QuicServer {
 impl ProtoServer for QuicServer {
     async fn get_conn(&self) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
         if let Some(conn) = self.endpoint.accept().await {
-            let conn = conn.await?;
+            let conn = conn.await.map_err(NetworkError::QuicExistingConnection)?;
             debug!("Got connection from {:?}", conn.remote_address());
-            let (send, mut recv) = conn.accept_bi().await?;
+            let (send, mut recv) = conn
+                .accept_bi()
+                .await
+                .map_err(NetworkError::QuicExistingConnection)?;
 
             trace!("Receiving single byte to open connection");
             let mut buf: [u8; 1] = [0];

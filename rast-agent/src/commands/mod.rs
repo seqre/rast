@@ -8,10 +8,7 @@ use std::{
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::{
-    commands::perms::Whoami,
-    context::Context,
-};
+use crate::{commands::perms::Whoami, context::Context};
 
 pub mod filesystem;
 pub mod perms;

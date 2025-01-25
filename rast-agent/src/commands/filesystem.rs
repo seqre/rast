@@ -16,11 +16,7 @@ use crate::{
 };
 
 pub(super) fn get_commands() -> Vec<Box<dyn Command>> {
-    vec![
-        Box::new(Cd),
-        Box::new(Ls),
-        Box::new(Pwd),
-    ]
+    vec![Box::new(Cd), Box::new(Ls), Box::new(Pwd)]
 }
 /// Change directory.
 #[derive(Default)]

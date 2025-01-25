@@ -1,24 +1,18 @@
 //! The Command-line Interface part of the Rast project.
 
-use std::{
-    error::Error,
-    fmt::Display,
-    sync::Arc,
-    vec,
-};
+use std::{error::Error, fmt::Display, sync::Arc, vec};
 
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
-    encoding::JsonPackager,
+    encoding::{Encoding, JsonPackager, Packager},
+    messages::{Message, MessageZone},
     protocols::{Messager, ProtoConnection},
 };
+use rast_agent::messages::{AgentResponse, C2Request};
+use rast_c2::messages::{UiRequest, UiResponse};
 use shellfish::{async_fn, handler::DefaultAsyncHandler, rustyline::DefaultEditor, Command, Shell};
 use tokio::sync::Mutex;
 use ulid::Ulid;
-use rast::encoding::{Encoding, Packager};
-use rast::messages::{Message, MessageZone};
-use rast_agent::messages::{AgentResponse, C2Request};
-use rast_c2::messages::{UiRequest, UiResponse};
 
 type CmdResult<T> = std::result::Result<T, Box<dyn Error>>;
 type State = ShellState;
@@ -147,7 +141,7 @@ async fn targets(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
 
     let request = UiRequest::GetAgents;
     let request = new_message(request);
-    
+
     messager.send(&request).await?;
     let msg = messager.receive().await?;
 
@@ -191,13 +185,13 @@ async fn exec_shell(state: &mut State, args: Vec<String>) -> CmdResult<()> {
     let request = C2Request::ExecShell(command);
     let request = UiRequest::AgentRequest(target, request);
     let request = new_message(request);
-    
+
     messager.send(&request).await?;
     let msg = messager.receive().await?;
-    
+
     let decoded = JsonPackager::decode(&msg.data)?;
     if let UiResponse::AgentResponse(AgentResponse::ShellResponse(output)) = decoded {
-            println!("{output}");
+        println!("{output}");
     };
 
     Ok(())
@@ -230,9 +224,9 @@ async fn commands(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
 
     let decoded = JsonPackager::decode(&msg.data)?;
     if let UiResponse::AgentResponse(AgentResponse::Commands(output)) = decoded {
-            for (cmd, help) in output.iter() {
-                println!("[{cmd}]\t {help}");
-            }
+        for (cmd, help) in output.iter() {
+            println!("[{cmd}]\t {help}");
+        }
     }
 
     Ok(())

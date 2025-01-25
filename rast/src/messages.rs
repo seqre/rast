@@ -2,17 +2,18 @@
 
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
+
 use crate::encoding::Encoding;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInit {
-    pub ulid: Ulid
+    pub ulid: Ulid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessageZone {
     Internal,
-    External(Ulid)
+    External(Ulid),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,7 +22,7 @@ pub struct Message {
     pub response_to: Option<Ulid>,
     pub zone: MessageZone,
     pub encoding: Encoding,
-    pub data: Vec<u8>
+    pub data: Vec<u8>,
 }
 
 impl Message {
@@ -31,7 +32,7 @@ impl Message {
             response_to: None,
             zone,
             encoding,
-            data
+            data,
         }
     }
 
@@ -41,7 +42,7 @@ impl Message {
             response_to: Some(self.id),
             zone: self.zone.clone(),
             encoding: self.encoding,
-            data
+            data,
         }
     }
 }

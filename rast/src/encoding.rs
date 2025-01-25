@@ -23,6 +23,7 @@ pub struct JsonPackager;
 
 impl Packager for JsonPackager {
     const ENCODING: Encoding = Encoding::Json;
+
     fn encode<T: Serialize>(data: &T) -> Result<Bytes> {
         Ok(serde_json::to_vec(data)
             .map_err(RastError::Conversion)?

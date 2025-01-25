@@ -2,11 +2,11 @@
 
 use crate::protocols::NetworkError;
 
+pub mod agent;
 pub mod encoding;
 pub mod messages;
 pub mod protocols;
 pub mod settings;
-pub mod agent;
 
 pub type Result<T> = std::result::Result<T, RastError>;
 

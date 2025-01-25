@@ -14,6 +14,7 @@ use tokio::{
     sync::Mutex,
 };
 use tokio_util::codec::{BytesCodec, Framed};
+
 use crate::{encoding::Packager, Result};
 
 pub mod quic;
@@ -100,7 +101,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
     P: Packager,
     M: Serialize + DeserializeOwned,
-{   
+{
     pub fn with_packager(stream: S, packager: P) -> Self {
         Messager {
             frame: Framed::new(stream, BytesCodec::new()),

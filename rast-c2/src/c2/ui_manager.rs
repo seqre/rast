@@ -6,7 +6,8 @@ use anyhow::{bail, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use futures_util::sink::SinkExt;
 use rast::{
-    encoding::JsonPackager,
+    encoding::{JsonPackager, Packager},
+    messages::Message,
     protocols::{
         quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
     },
@@ -21,8 +22,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::{debug, info};
-use rast::encoding::Packager;
-use rast::messages::Message;
+
 use crate::messages::{UiRequest, UiResponse};
 
 /// Manager of the UI connections.
@@ -48,7 +48,7 @@ impl UiManager {
 
         Ok(ui)
     }
-    
+
     /// Returns an attempt of getting [UI request](UiRequest).
     #[tracing::instrument]
     pub fn try_recv_request(&self) -> Result<ReceivedRequest<UiRequest, UiResponse>> {
@@ -132,7 +132,7 @@ impl InnerUiManager {
         }
     }
 
-    async fn run(&mut self){
+    async fn run(&mut self) {
         loop {
             while let Some(conn) = self.connections_rx.recv().await {
                 info!("UI received connection");
@@ -152,7 +152,7 @@ impl InnerUiManager {
             loop {
                 if let Ok(msg) = messager.receive().await {
                     let msg: Message = msg;
-                    
+
                     if let Ok(uireq) = JsonPackager::decode(&msg.data) {
                         match requester.send(uireq).await {
                             Ok(response) => {
@@ -167,8 +167,6 @@ impl InnerUiManager {
                             },
                         }
                     }
-                    
-                    
                 }
             }
         });

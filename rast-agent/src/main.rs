@@ -20,6 +20,8 @@ async fn main() {
         },
     };
 
-    let mut agent = RastAgent::with_settings(settings).await.expect("Failed to create agent");
+    let mut agent = RastAgent::with_settings(settings)
+        .await
+        .expect("Failed to create agent");
     agent.run().await;
 }

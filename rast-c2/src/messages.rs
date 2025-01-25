@@ -1,9 +1,8 @@
 //! Types for C2 <-> UI communication.
 
-
+use rast_agent::messages::{AgentResponse, C2Request};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
-use rast_agent::messages::{AgentResponse, C2Request};
 
 /// Task request from UI to C2.
 #[derive(Debug, Serialize, Deserialize)]

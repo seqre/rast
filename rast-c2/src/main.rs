@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     };
 
     let mut c2 = RastC2::with_settings(conf).await?;
-    c2.run().await?;
+    c2.run().await;
 
     // tui::run().await;
     Ok(())

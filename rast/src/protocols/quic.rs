@@ -6,7 +6,8 @@ use std::{
     task::{Context, Poll},
     time::Duration,
 };
-
+#[cfg(feature = "embed-cert")]
+use std::ops::Deref;
 #[cfg(feature = "embed-cert")]
 use include_flate::flate;
 use quinn::{ClientConfig, Connection, Endpoint, RecvStream, SendStream, ServerConfig};
@@ -24,7 +25,7 @@ use crate::{
     RastError,
 };
 
-const ALPN_QUIC_HTTP: &[&[u8]] = &[b"hq-29"];
+// const ALPN_QUIC_HTTP: &[&[u8]] = &[b"hq-29"];
 
 #[cfg(feature = "embed-cert")]
 flate!(static CERT: [u8] from "../cert.der");
@@ -55,13 +56,8 @@ impl QuicFactory {
         let certs = vec![rustls::pki_types::CertificateDer::from(cert)];
 
         // let mut server_config = ServerConfig::with_crypto(Arc::new(server_crypto));
-        let mut server_config = ServerConfig::with_single_cert(certs, key)?;
-
-        let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-        // #[cfg(any(windows, os = "linux"))]
-        // transport_config.
-        // mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
-
+        let server_config = ServerConfig::with_single_cert(certs, key)?;
+        
         Ok(server_config)
     }
 
@@ -87,10 +83,7 @@ impl QuicFactory {
             .map_err(|e| RastError::TODO(e.to_string()))?;
 
         let mut transport_config = quinn::TransportConfig::default();
-
-        // #[cfg(any(windows, os = "linux"))]
-        // transport_config.
-        // mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
+        
         transport_config.keep_alive_interval(Some(Duration::from_secs(5)));
         client_config.transport_config(Arc::new(transport_config));
 
@@ -128,7 +121,7 @@ impl ProtoFactory for QuicFactory {
             .map_err(NetworkError::QuicExistingConnection)?;
 
         trace!("Sending single byte to open connection");
-        let out = send.write(&[0u8]).await;
+        let _ = send.write(&[0u8]).await;
 
         Ok(Arc::new(Mutex::new(QuicConnection::new(conn, recv, send))))
     }

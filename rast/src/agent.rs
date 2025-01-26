@@ -39,7 +39,7 @@ impl Agent {
         self.ulid
     }
 
-    pub async fn get_connection(&self) -> Option<Arc<Mutex<dyn ProtoConnection>>> {
+    pub fn get_connection(&self) -> Option<Arc<Mutex<dyn ProtoConnection>>> {
         self.connection.clone()
     }
 

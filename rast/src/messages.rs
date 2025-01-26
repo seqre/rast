@@ -26,6 +26,7 @@ pub struct Message {
 }
 
 impl Message {
+    #[must_use]
     pub fn new(zone: MessageZone, encoding: Encoding, data: Vec<u8>) -> Self {
         Self {
             id: Ulid::new(),
@@ -36,6 +37,7 @@ impl Message {
         }
     }
 
+    #[must_use]
     pub fn respond(&self, data: Vec<u8>) -> Self {
         Self {
             id: Ulid::new(),

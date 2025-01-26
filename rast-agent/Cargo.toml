@@ -13,17 +13,11 @@ publish = false
 [dependencies]
 rast = { path = "../rast" } #, features = ["embed-cert"] }
 tokio = { workspace = true, features = ["rt", "process"] }
-tokio-util = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-futures-util = { workspace = true }
-bytes = { workspace = true }
 async-trait = { workspace = true }
 ulid = { workspace = true }
 
-rust-embed = { version = "8.5" }
 whoami = { version = "1.5" }
-log = "0.4.25"

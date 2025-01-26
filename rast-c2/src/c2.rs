@@ -3,13 +3,12 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, vec};
 
 use bidirectional_channel::ReceivedRequest;
-use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     agent::Agent,
     encoding::{Encoding, JsonPackager, Packager},
     messages::{Message, MessageZone},
     protocols::{
-        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
+        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory,
     },
     settings::{Connection, Settings},
     RastError, Result,
@@ -59,7 +58,7 @@ impl RastC2 {
         let (tx, rx) = unbounded_channel();
         let mut servers = vec![];
 
-        for conf in settings.server.agent_listeners.iter() {
+        for conf in &settings.server.agent_listeners {
             let task = Self::create_listener(conf, tx.clone()).await?;
             servers.push(task);
         }
@@ -87,7 +86,6 @@ impl RastC2 {
         let listener = match conf {
             Connection::Tcp(tcp_conf) => TcpFactory::new_server(tcp_conf).await,
             Connection::Quic(quic_conf) => QuicFactory::new_server(quic_conf).await,
-            _ => Err(RastError::Unknown),
         };
 
         if let Ok(listener) = listener {
@@ -109,7 +107,7 @@ impl RastC2 {
     }
 
     /// Starts C2 server.
-    pub async fn run(&mut self) -> Result<()> {
+    pub async fn run(&mut self) {
         info!("RastC2 instance running");
         loop {
             while let Ok(conn) = self.connections_rx.try_recv() {
@@ -117,7 +115,9 @@ impl RastC2 {
                     "Received agent connection from: {:?}",
                     conn.lock().await.remote_addr()
                 );
-                self.add_connection(conn).await?;
+                if let Err(e) = self.add_connection(conn).await {
+                    debug!("Failed to add agent connection: {e:?}");
+                };
                 trace!("Added agent connection");
             }
 
@@ -162,7 +162,7 @@ impl RastC2 {
             Encoding::Json,
             JsonPackager::encode(msg)?.into(),
         );
-        let conn = agent.get_connection().await.ok_or(RastError::TODO(
+        let conn = agent.get_connection().ok_or(RastError::TODO(
             "Agent does not have valid connection".to_string(),
         ))?;
         let response = self.send_message(conn, &msg).await?;
@@ -174,14 +174,14 @@ impl RastC2 {
         let response = match req.as_ref() {
             UiRequest::Ping => UiResponse::Pong,
             UiRequest::GetAgents => {
-                let ips = self.agents.keys().cloned().collect();
+                let ips = self.agents.keys().copied().collect();
                 UiResponse::Agents(ips)
             },
             UiRequest::AgentRequest(ulid, c2req) => {
                 let response = self
                     .send_request(ulid, c2req)
                     .await
-                    .unwrap_or_else(|e| AgentResponse::Error(format!("{:?}", e)));
+                    .unwrap_or_else(|e| AgentResponse::Error(format!("{e:?}")));
                 UiResponse::AgentResponse(response)
             },
         };

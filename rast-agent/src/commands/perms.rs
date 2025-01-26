@@ -1,7 +1,6 @@
 use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
-
 use crate::{
     commands::{Command, CommandCategory, CommandOutput},
     context::Context,
@@ -34,7 +33,7 @@ impl Command for Whoami {
         _ctx: Arc<RwLock<Context>>,
         _args: Vec<String>,
     ) -> anyhow::Result<CommandOutput> {
-        let output = format!("{}@{}", whoami::username(), whoami::hostname());
+        let output = format!("{}@{:?}", whoami::username(), whoami::fallible::hostname());
         Ok(CommandOutput::Text(output))
     }
 }

@@ -77,10 +77,13 @@ impl Commands {
             .collect()
     }
 
-    pub fn get_command(&self, key: String) -> Option<&Box<dyn Command>> {
-        self.commands.get(&key)
+    #[allow(clippy::borrowed_box)]
+    #[must_use]
+    pub fn get_command(&self, key: &str) -> Option<&Box<dyn Command>> {
+        self.commands.get(key)
     }
 
+    #[must_use]
     pub fn get_supported_commands(&self) -> Vec<(String, String)> {
         self.commands
             .iter()

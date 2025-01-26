@@ -4,12 +4,11 @@ use std::{fmt::Debug, net::SocketAddr, sync::Arc, vec};
 
 use anyhow::{bail, Result};
 use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
-use futures_util::sink::SinkExt;
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::Message,
     protocols::{
-        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory, ProtoServer,
+        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory,
     },
     settings::{Connection, Settings},
     RastError,
@@ -83,7 +82,7 @@ impl InnerUiManager {
         let (tx, rx) = unbounded_channel();
         let mut servers = vec![];
 
-        for conf in settings.server.ui_listeners.iter() {
+        for conf in &settings.server.ui_listeners {
             let task = InnerUiManager::create_listener(conf, tx.clone()).await?;
             servers.push(task);
         }
@@ -107,7 +106,6 @@ impl InnerUiManager {
         let server = match conf {
             Connection::Tcp(tcp_conf) => TcpFactory::new_server(tcp_conf).await,
             Connection::Quic(quic_conf) => QuicFactory::new_server(quic_conf).await,
-            _ => bail!(RastError::Unknown),
         };
 
         if let Ok(server) = server {

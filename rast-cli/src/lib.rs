@@ -2,7 +2,6 @@
 
 use std::{error::Error, fmt::Display, sync::Arc, vec};
 
-use futures_util::{sink::SinkExt, stream::StreamExt};
 use rast::{
     encoding::{Encoding, JsonPackager, Packager},
     messages::{Message, MessageZone},
@@ -54,7 +53,7 @@ pub fn get_shell(
         state,
         "[rast]> ",
         DefaultAsyncHandler::default(),
-        DefaultEditor::new().unwrap(),
+        DefaultEditor::new().expect("Default Editor should always be created"),
     );
 
     // TODO: add custom handler to check connection
@@ -108,6 +107,7 @@ pub fn get_shell(
     shell
 }
 
+#[must_use]
 pub fn new_message(uireq: UiRequest) -> Message {
     let bytes = JsonPackager::encode(&uireq).unwrap();
     Message::new(MessageZone::Internal, Encoding::Json, bytes.into())
@@ -116,7 +116,7 @@ pub fn new_message(uireq: UiRequest) -> Message {
 // async fn send_request(request: UiRequest) -> Result<UiResponse> {}
 
 /// Sends [`UiRequest::Ping`] to the C2 server to check connectivity.
-async fn ping(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
+async fn ping(state: &State, _args: Vec<String>) -> CmdResult<()> {
     let mut conn = state.conn.lock().await;
     let mut messager = Messager::with_packager(&mut *conn, JsonPackager);
 
@@ -158,7 +158,7 @@ async fn targets(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
 }
 
 /// Executes command on the specified agent.
-async fn exec_shell(state: &mut State, args: Vec<String>) -> CmdResult<()> {
+async fn exec_shell(state: &State, args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
         return Ok(());
@@ -198,7 +198,7 @@ async fn exec_shell(state: &mut State, args: Vec<String>) -> CmdResult<()> {
 }
 
 /// Executes command on the specified agent.
-async fn commands(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
+async fn commands(state: &State, _args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
         return Ok(());
@@ -224,7 +224,7 @@ async fn commands(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
 
     let decoded = JsonPackager::decode(&msg.data)?;
     if let UiResponse::AgentResponse(AgentResponse::Commands(output)) = decoded {
-        for (cmd, help) in output.iter() {
+        for (cmd, help) in &output {
             println!("[{cmd}]\t {help}");
         }
     }
@@ -233,7 +233,7 @@ async fn commands(state: &mut State, _args: Vec<String>) -> CmdResult<()> {
 }
 
 /// Executes command on the specified agent.
-async fn exec_command(state: &mut State, args: Vec<String>) -> CmdResult<()> {
+async fn exec_command(state: &State, args: Vec<String>) -> CmdResult<()> {
     if state.target.is_none() {
         println!("No target is selected");
         return Ok(());
@@ -277,7 +277,7 @@ fn set_target(state: &mut State, args: Vec<String>) -> CmdResult<()> {
         return Ok(());
     }
 
-    let target = args.get(1).unwrap().parse::<usize>().unwrap();
+    let target = args.get(1).unwrap().parse::<usize>()?;
 
     if let Some(target) = state.targets.get(target) {
         state.target = Some(*target);

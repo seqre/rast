@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
 };
-
+use std::path::Path;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use tracing::debug;
@@ -64,7 +64,7 @@ impl Command for Cd {
 pub struct Ls;
 
 impl Ls {
-    fn get_dir_contents(path: PathBuf) -> Result<Vec<String>> {
+    fn get_dir_contents(path: &Path) -> Result<Vec<String>> {
         let dir_entries = match path.read_dir() {
             Ok(entries) => entries,
             Err(e) => {
@@ -108,7 +108,7 @@ impl Command for Ls {
         if args.is_empty() {
             // TODO: fix error handling
             let ctx = ctx.read().unwrap();
-            let output = match Ls::get_dir_contents(ctx.get_dir()) {
+            let output = match Ls::get_dir_contents(&ctx.get_dir()) {
                 Ok(out) => out,
                 Err(e) => return Err(e),
             };
@@ -125,7 +125,7 @@ impl Command for Ls {
             return Err(anyhow!("No access or directory do not exist"));
         }
 
-        let output = match Ls::get_dir_contents(path) {
+        let output = match Ls::get_dir_contents(&path) {
             Ok(out) => out,
             Err(e) => return Err(e),
         };

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Result};
+use anyhow::{Result};
 use rast::{
     protocols::{quic::QuicFactory, tcp::TcpFactory, ProtoConnection, ProtoFactory},
     settings::{Connection, Settings},
@@ -11,11 +11,10 @@ use tokio::sync::Mutex;
 use tracing::info;
 
 async fn get_connection(settings: &Settings) -> Result<Arc<Mutex<dyn ProtoConnection>>> {
-    for conf in settings.server.ui_listeners.iter() {
+    for conf in &settings.server.ui_listeners {
         let conn = match conf {
             Connection::Tcp(tcp_conf) => TcpFactory::new_connection(tcp_conf).await,
             Connection::Quic(quic_conf) => QuicFactory::new_connection(quic_conf).await,
-            _ => bail!(RastError::Unknown),
         };
 
         if let Ok(conn) = conn {
@@ -51,8 +50,4 @@ async fn main() -> Result<(), RastError> {
     shell.run_async().await?;
 
     Ok(())
-}
-
-fn print_type_of<T>(_: &T) {
-    println!("{}", std::any::type_name::<T>())
 }

@@ -21,6 +21,7 @@ futures-util = { workspace = true, features = ["sink"] }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 ulid = { workspace = true }
+bytes = { workspace = true }
 
 config = { version = "0.15" }
 futures-io = { version = "0.3" }

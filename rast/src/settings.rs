@@ -53,16 +53,14 @@ static CONFIG: &'static str = include_str!("../../config/default.yaml");
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         let conf = Config::builder();
-        
+
         #[cfg(debug_assertions)]
         let conf = conf.add_source(File::with_name("config/default"));
-        
+
         #[cfg(not(debug_assertions))]
         let conf = conf.add_source(File::from_str(CONFIG, config::FileFormat::Yaml));
-        
-        let conf = conf
-            .add_source(Environment::with_prefix("RAST"))
-            .build()?;
+
+        let conf = conf.add_source(Environment::with_prefix("RAST")).build()?;
 
         conf.try_deserialize()
     }

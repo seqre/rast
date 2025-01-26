@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Result};
+use anyhow::Result;
 use rast::{
     protocols::{quic::QuicFactory, tcp::TcpFactory, ProtoConnection, ProtoFactory},
     settings::{Connection, Settings},

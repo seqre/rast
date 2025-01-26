@@ -1,4 +1,6 @@
 //! TCP implementation of [`ProtoConnection`].
+#[cfg(feature = "embed-cert")]
+use std::ops::Deref;
 use std::{
     fs,
     net::{IpAddr, Ipv4Addr},
@@ -6,8 +8,7 @@ use std::{
     task::{Context, Poll},
     time::Duration,
 };
-#[cfg(feature = "embed-cert")]
-use std::ops::Deref;
+
 #[cfg(feature = "embed-cert")]
 use include_flate::flate;
 use quinn::{ClientConfig, Connection, Endpoint, RecvStream, SendStream, ServerConfig};
@@ -57,7 +58,7 @@ impl QuicFactory {
 
         // let mut server_config = ServerConfig::with_crypto(Arc::new(server_crypto));
         let server_config = ServerConfig::with_single_cert(certs, key)?;
-        
+
         Ok(server_config)
     }
 
@@ -83,7 +84,7 @@ impl QuicFactory {
             .map_err(|e| RastError::TODO(e.to_string()))?;
 
         let mut transport_config = quinn::TransportConfig::default();
-        
+
         transport_config.keep_alive_interval(Some(Duration::from_secs(5)));
         client_config.transport_config(Arc::new(transport_config));
 

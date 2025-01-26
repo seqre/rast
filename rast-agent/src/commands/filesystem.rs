@@ -1,10 +1,10 @@
 //! Filesystem-related commands.
 
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
-use std::path::Path;
+
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use tracing::debug;

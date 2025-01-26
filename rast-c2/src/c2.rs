@@ -7,9 +7,7 @@ use rast::{
     agent::Agent,
     encoding::{Encoding, JsonPackager, Packager},
     messages::{Message, MessageZone},
-    protocols::{
-        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory,
-    },
+    protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
     settings::{Connection, Settings},
     RastError, Result,
 };

@@ -17,15 +17,12 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 futures-util = { workspace = true, features = ["sink"] }
-bytes = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 ulid = { workspace = true }
 
 config = { version = "0.15" }
-glob = { version = "0.3" }
 futures-io = { version = "0.3" }
 pin-project = "1.1"
 quinn = { version = "0.11" }

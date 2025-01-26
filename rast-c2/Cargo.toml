@@ -13,14 +13,10 @@ publish = false
 [dependencies]
 rast = { path = "../rast" }
 tokio = { workspace = true, features = ["rt-multi-thread", "process"] }
-tokio-util = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-futures-util = { workspace = true }
-bytes = { workspace = true }
 ulid = { workspace = true }
 rast-agent = { path = "../rast-agent" }
 

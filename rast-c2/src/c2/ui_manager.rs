@@ -7,9 +7,7 @@ use bidirectional_channel::{bounded, ReceivedRequest, Requester, Responder};
 use rast::{
     encoding::{JsonPackager, Packager},
     messages::Message,
-    protocols::{
-        quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory,
-    },
+    protocols::{quic::QuicFactory, tcp::TcpFactory, Messager, ProtoConnection, ProtoFactory},
     settings::{Connection, Settings},
     RastError,
 };

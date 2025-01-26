@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, RwLock};
 
-use anyhow::{Result};
+use anyhow::Result;
 use commands::Commands;
 use rast::{
     encoding::{Encoding, JsonPackager, Packager},
@@ -16,7 +16,7 @@ use tracing::{debug, info, trace};
 use ulid::Ulid;
 
 use crate::{
-    commands::{CommandOutput},
+    commands::CommandOutput,
     context::Context,
     messages::{AgentResponse, C2Request},
 };

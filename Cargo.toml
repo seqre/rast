@@ -1,6 +1,5 @@
 [workspace]
 resolver = "2"
-
 members = [
   "rast",
   "rast-agent",
@@ -8,6 +7,14 @@ members = [
   "rast-cli",
   #"rast-tui",
 ]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+authors = ["Marek 'seqre' Grzelak <marek.grzelak@seqre.dev>"]
+repository = "https://github.com/seqre/rast"
+license = "GPL-3.0-or-later"
+publish = false
 
 [workspace.dependencies]
 tokio = { version = "1.21", features = ["macros"] }

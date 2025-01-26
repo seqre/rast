@@ -1,14 +1,14 @@
 [package]
 name = "rast-c2"
-version = "0.1.0"
-edition = "2021"
-authors = ["Marek 'seqre' Grzelak <marek.grzelak@seqre.dev>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+readme = "../README.md"
 description = "C2 server library for Rast C2 & RAT framework."
-readme = "README.md"
-repository = "https://github.com/seqre/rast"
-license = "GPL-3.0-or-later"
 keywords = ["c2", "rat"]
-publish = false
 
 [dependencies]
 rast = { path = "../rast" }

@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache Cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -62,7 +62,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache Cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache Cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -108,7 +108,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache Cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -134,7 +134,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Cache Cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry

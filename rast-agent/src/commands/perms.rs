@@ -34,7 +34,10 @@ impl Command for Whoami {
         _ctx: Arc<RwLock<Context>>,
         _args: Vec<String>,
     ) -> anyhow::Result<CommandOutput> {
-        let output = format!("{}@{:?}", whoami::username(), whoami::fallible::hostname());
+        let output = match whoami::fallible::hostname() {
+            Ok(hostname) => format!("{}@{}", whoami::username(), hostname),
+            Err(_) => whoami::username(),
+        };
         Ok(CommandOutput::Text(output))
     }
 }

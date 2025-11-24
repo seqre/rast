@@ -27,7 +27,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -59,7 +59,7 @@ jobs:
     needs: ['check']
     steps:
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -82,7 +82,7 @@ jobs:
     needs: ['check']
     steps:
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -105,7 +105,7 @@ jobs:
     needs: ['check']
     steps:
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -131,7 +131,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Cache Cargo registry
         uses: actions/cache@v4

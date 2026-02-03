@@ -20,4 +20,4 @@ tracing-subscriber = { workspace = true }
 async-trait = { workspace = true }
 ulid = { workspace = true }
 
-whoami = { version = "1.5" }
+whoami = { version = "2.1" }
